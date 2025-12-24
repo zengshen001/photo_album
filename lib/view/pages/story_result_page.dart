@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/event.dart';
-import '../../models/photo.dart';
+import '../../models/vo/photo.dart';
 import '../../models/story.dart';
 
 class StoryResultPage extends StatefulWidget {

@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# cluade code
+CLAUDE.md
+
+# Ignore generated files
+*.g.dart
+*.freezed.dart
+*.config.dart

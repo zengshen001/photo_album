@@ -1,13 +1,10 @@
-import 'photo.dart';
+import 'vo/photo.dart';
 
 class StoryBlock {
   final String text;
   final Photo? photo;
 
-  StoryBlock({
-    required this.text,
-    this.photo,
-  });
+  StoryBlock({required this.text, this.photo});
 }
 
 class Story {

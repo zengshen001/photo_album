@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:photo_album/service/photo_service.dart';
 import 'view/widget_tree.dart';
 
-void main() {
+void main() async {
+  // 1. 确保 Flutter 绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. 初始化 PhotoService (打开数据库)
+  await PhotoService().init();
+
   runApp(const MyApp());
 }
 
