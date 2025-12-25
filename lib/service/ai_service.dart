@@ -211,13 +211,12 @@ class AIService {
     final isar = PhotoService().isar;
 
     final total = await isar.collection<PhotoEntity>().count();
-    final analyzed =
-        await isar.collection<PhotoEntity>().filter().isAiAnalyzedEqualTo(true).count();
+    final analyzed = await isar
+        .collection<PhotoEntity>()
+        .filter()
+        .isAiAnalyzedEqualTo(true)
+        .count();
 
-    return {
-      'total': total,
-      'analyzed': analyzed,
-      'pending': total - analyzed,
-    };
+    return {'total': total, 'analyzed': analyzed, 'pending': total - analyzed};
   }
 }

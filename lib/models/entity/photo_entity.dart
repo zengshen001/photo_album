@@ -12,6 +12,10 @@ class PhotoEntity {
   late String path;
   late int timestamp;
 
+  // 📐 图片尺寸信息 (用于过滤截图和UI占位)
+  late int width;
+  late int height;
+
   // 📍 地理坐标 (WGS84 标准坐标)
   double? latitude;
   double? longitude;
@@ -34,4 +38,17 @@ class PhotoEntity {
   // 🤖 AI 分析相关
   List<String>? aiTags; // AI 识别的标签（美食、海滩等）
   bool isAiAnalyzed = false; // AI 分析状态标记
+
+  // 👤 人脸识别信息 (用于后续 AI 选图)
+  int faceCount = 0; // 检测到的人脸数量
+  double smileProb = 0.0; // 微笑概率 (0.0 - 1.0)
+
+  // 计算图片宽高比
+  double get aspectRatio => width > 0 ? width / height : 1.0;
+
+  // 判断是否可能是截图 (极端比例)
+  bool get isProbablyScreenshot {
+    final ratio = aspectRatio;
+    return ratio < 0.45 || ratio > 2.2;
+  }
 }
