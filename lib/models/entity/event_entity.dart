@@ -26,13 +26,19 @@ class EventEntity {
   List<int> photoIds = []; // 关联的 PhotoEntity 的 id 列表
 
   // 🖼️ 封面图
-  int? coverPhotoId; // 封面图的 PhotoEntity id (可为空，自动取第一张)
+  int? coverPhotoId; // 封面图的 PhotoEntity id (智能选图：最高 joyScore)
 
   // 🏷️ 标签和主题
   List<String> tags = []; // 聚合的标签（从照片 AI 标签统计得出）
 
   // 📊 统计信息
   int photoCount = 0; // 照片数量（冗余字段，方便查询）
+
+  // 😊 AI 智能增强字段
+  double? joyScore; // 事件平均欢乐值 (0.0 - 1.0)
+  List<String>? aiThemes; // AI 生成的标题列表（本地规则：1个，LLM：3-5个）
+  bool isLlmGenerated = false; // 标记当前标题是否由 LLM 生成
+  int analyzedPhotoCount = 0; // 已分析照片数量（进度追踪）
 
   // 🎨 季节推导 (根据月份自动计算)
   String get season {
