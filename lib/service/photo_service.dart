@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../models/entity/photo_entity.dart';
 import '../models/entity/event_entity.dart';
+import '../models/entity/story_entity.dart';
 import 'ai_service.dart'; // 导入 AI 服务
 
 class PhotoService {
@@ -19,7 +20,7 @@ class PhotoService {
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     _isar = await Isar.open(
-      [PhotoEntitySchema, EventEntitySchema], // 同时注册 EventEntity
+      [PhotoEntitySchema, EventEntitySchema, StoryEntitySchema], // 注册所有实体
       directory: dir.path,
     );
   }

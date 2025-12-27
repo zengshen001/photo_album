@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../../models/ai_theme.dart';
+import '../../models/entity/event_entity.dart';
+import '../../service/photo_service.dart';
+import '../../service/story_service.dart';
 import 'story_result_page.dart';
 
 enum StoryLength { short, medium }
@@ -43,9 +46,9 @@ class _ConfigPageState extends State<ConfigPage> {
 
   Future<void> _generateStory() async {
     if (_themeController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请输入故事主题')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入故事主题')),
+      );
       return;
     }
 
@@ -53,27 +56,65 @@ class _ConfigPageState extends State<ConfigPage> {
       _isGenerating = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // 1. 获取 EventEntity（通过 Event.id 查询）
+      final isar = PhotoService().isar;
+      final eventEntityId = int.parse(widget.event.id);
+      final eventEntity = await isar.collection<EventEntity>().get(eventEntityId);
 
-    if (!mounted) return;
+      if (eventEntity == null) {
+        throw Exception('Event not found');
+      }
 
-    setState(() {
-      _isGenerating = false;
-    });
+      // 2. 使用 StoryService 的 loadPhotos 方法加载照片
+      final photoEntities = await StoryService().loadPhotos(eventEntity.photoIds);
 
-    // Navigate to result page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => StoryResultPage.fromGenerated(
-          event: widget.event,
-          photos: widget.selectedPhotos,
-          theme: _themeController.text,
-          subtitle: _selectedSubtitle ?? '',
-        ),
-      ),
-    );
+      if (photoEntities.isEmpty) {
+        throw Exception('No photos found');
+      }
+
+      // 3. 调用 StoryService 生成故事
+      final story = await StoryService().generateStory(
+        event: eventEntity,
+        selectedPhotos: photoEntities,
+        title: _themeController.text.trim(),
+        subtitle: _selectedSubtitle ?? '',
+        length: _selectedLength,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isGenerating = false;
+      });
+
+      if (story != null) {
+        // 4. 导航到 StoryResultPage.fromStoryEntity
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StoryResultPage.fromStoryEntity(
+              storyEntity: story,
+              photos: photoEntities,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('故事生成失败，请重试')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isGenerating = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('生成异常: $e')),
+        );
+      }
+    }
   }
 
   @override

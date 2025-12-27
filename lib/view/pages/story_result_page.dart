@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../../models/story.dart';
+import '../../models/entity/story_entity.dart';
+import '../../models/entity/photo_entity.dart';
+import '../../service/photo_service.dart';
+import '../../service/story_service.dart';
 
 class StoryResultPage extends StatefulWidget {
   final String title;
   final String subtitle;
   final Photo heroImage;
   final List<StorySection> sections;
+  final int? storyEntityId; // 新增：用于保存编辑
 
   const StoryResultPage({
     super.key,
@@ -15,46 +19,44 @@ class StoryResultPage extends StatefulWidget {
     required this.subtitle,
     required this.heroImage,
     required this.sections,
+    this.storyEntityId, // 新增
   });
 
-  // Create from generated story (Config -> Result)
-  factory StoryResultPage.fromGenerated({
-    required Event event,
-    required List<Photo> photos,
-    required String theme,
-    required String subtitle,
+  // 新增：从 StoryEntity 加载（ConfigPage 生成后）
+  factory StoryResultPage.fromStoryEntity({
+    required StoryEntity storyEntity,
+    required List<PhotoEntity> photos,
   }) {
-    final sections = [
-      StorySection(
-        text:
-            '${event.dateRangeText}，${event.location}。'
-            '这是一段$theme的美好时光。阳光洒在我们身上，微风轻拂，'
-            '每一个瞬间都值得被记录和珍藏。',
-        photo: photos[0],
-      ),
-      StorySection(
-        text:
-            '我们一起探索这个美丽的地方，发现了许多惊喜。'
-            '笑声和欢乐充满了每一个角落，这些时刻成为了我们最珍贵的回忆。',
-        photo: photos.length > 1 ? photos[1] : photos[0],
-      ),
-      StorySection(
-        text:
-            '时间总是过得很快，但这些美好的记忆会永远留在心中。'
-            '期待下一次的相遇，期待更多的美好时光。',
-        photo: photos.length > 2 ? photos[2] : photos[0],
-      ),
-    ];
+    // 解析 Markdown 为 StorySection 列表
+    final sectionMaps = storyEntity.parseToSections(photos);
+    final sections = sectionMaps.map((map) {
+      return StorySection(
+        text: map['text'] as String,
+        photo: map['photo'] as Photo,
+      );
+    }).toList();
+
+    // 使用第一张照片作为 hero 图
+    final heroPhoto = photos.isNotEmpty
+        ? Photo(
+            id: photos.first.assetId,
+            path: photos.first.path,
+            dateTaken: DateTime.fromMillisecondsSinceEpoch(photos.first.timestamp),
+            tags: photos.first.aiTags ?? [],
+            location: photos.first.city ?? photos.first.province,
+          )
+        : (sectionMaps.isNotEmpty ? sectionMaps.first['photo'] as Photo : throw Exception('No photos'));
 
     return StoryResultPage(
-      title: theme,
-      subtitle: subtitle,
-      heroImage: photos.first,
+      title: storyEntity.title,
+      subtitle: storyEntity.subtitle,
+      heroImage: heroPhoto,
       sections: sections,
+      storyEntityId: storyEntity.id, // 关键：保存 ID
     );
   }
 
-  // Create from saved story (Stories list -> Result)
+  // 保留：从已保存的 Story 加载（Stories list -> Result）
   factory StoryResultPage.fromStory(Story story) {
     return StoryResultPage(
       title: story.title,
@@ -116,10 +118,52 @@ class _StoryResultPageState extends State<StoryResultPage> {
     );
   }
 
-  void _saveStory() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('故事已保存')));
+  void _saveStory() async {
+    if (widget.storyEntityId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法保存：缺少故事ID')),
+      );
+      return;
+    }
+
+    try {
+      // 1. 加载原始 StoryEntity
+      final isar = PhotoService().isar;
+      final story = await isar.collection<StoryEntity>()
+          .get(widget.storyEntityId!);
+
+      if (story == null) {
+        throw Exception('Story not found');
+      }
+
+      // 2. 将编辑后的 sections 转回 Markdown
+      final sectionMaps = _sections.map((section) {
+        return {
+          'text': section.text,
+          'photo': section.photo,
+        };
+      }).toList();
+
+      final updatedContent = StoryEntity.sectionsToMarkdown(sectionMaps);
+
+      // 3. 更新 content
+      story.content = updatedContent;
+
+      // 4. 保存到数据库
+      await StoryService().updateStory(story);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('故事已保存')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败: $e')),
+        );
+      }
+    }
   }
 
   void _shareStory() {

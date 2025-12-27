@@ -198,4 +198,35 @@ class LLMService {
   /// 📊 检查 API Key 是否已配置
   bool get isApiKeyConfigured =>
       _apiKey.isNotEmpty && _apiKey != "YOUR_GEMINI_API_KEY_HERE";
+
+  /// 📝 生成博客文本内容
+  ///
+  /// 参数:
+  /// - [prompt]: 完整的博客生成 Prompt
+  ///
+  /// 返回: 生成的 Markdown 格式博客正文
+  Future<String?> generateBlogText(String prompt) async {
+    try {
+      // 调用 Gemini API
+      final model = GenerativeModel(
+        model: _modelName,
+        apiKey: _apiKey,
+      );
+
+      final content = [Content.text(prompt)];
+      final response = await model.generateContent(content);
+
+      final text = response.text;
+      if (text == null || text.isEmpty) {
+        print("⚠️ LLM 返回为空");
+        return null;
+      }
+
+      print("✅ LLM 成功生成博客内容");
+      return text.trim();
+    } catch (e) {
+      print("❌ LLM 博客生成失败: $e");
+      return null;
+    }
+  }
 }
