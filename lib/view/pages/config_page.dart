@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:isar/isar.dart';
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../../models/ai_theme.dart';
 import '../../models/entity/event_entity.dart';
+import '../../models/entity/photo_entity.dart';
 import '../../service/photo_service.dart';
 import '../../service/story_service.dart';
 import 'story_result_page.dart';
@@ -46,9 +48,9 @@ class _ConfigPageState extends State<ConfigPage> {
 
   Future<void> _generateStory() async {
     if (_themeController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入故事主题')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请输入故事主题')));
       return;
     }
 
@@ -60,14 +62,24 @@ class _ConfigPageState extends State<ConfigPage> {
       // 1. 获取 EventEntity（通过 Event.id 查询）
       final isar = PhotoService().isar;
       final eventEntityId = int.parse(widget.event.id);
-      final eventEntity = await isar.collection<EventEntity>().get(eventEntityId);
+      final eventEntity = await isar.collection<EventEntity>().get(
+        eventEntityId,
+      );
 
       if (eventEntity == null) {
         throw Exception('Event not found');
       }
 
-      // 2. 使用 StoryService 的 loadPhotos 方法加载照片
-      final photoEntities = await StoryService().loadPhotos(eventEntity.photoIds);
+      // 2. 严格按用户选择的照片生成故事
+      final selectedAssetIds = widget.selectedPhotos
+          .map((photo) => photo.id)
+          .toList();
+      final List<PhotoEntity> photoEntities = await isar
+          .collection<PhotoEntity>()
+          .filter()
+          .anyOf(selectedAssetIds, (q, assetId) => q.assetIdEqualTo(assetId))
+          .sortByTimestamp()
+          .findAll();
 
       if (photoEntities.isEmpty) {
         throw Exception('No photos found');
@@ -100,9 +112,9 @@ class _ConfigPageState extends State<ConfigPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('故事生成失败，请重试')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('故事生成失败，请重试')));
       }
     } catch (e) {
       setState(() {
@@ -110,9 +122,9 @@ class _ConfigPageState extends State<ConfigPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('生成异常: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('生成异常: $e')));
       }
     }
   }

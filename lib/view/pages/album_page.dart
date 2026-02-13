@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/event.dart';
+import '../../service/ai_service.dart';
 import '../../service/event_service.dart';
 import '../../service/photo_service.dart';
 import '../widgets/event_card.dart';
@@ -24,16 +25,29 @@ class _AlbumPageState extends State<AlbumPage> {
     setState(() => _isRefreshing = true);
 
     try {
-      // 1. 扫描相册（会自动触发 AI 分析）
-      await PhotoService().scanAndSyncPhotos();
+      // 1. 扫描相册（仅入库原始可用数据）
+      final scanSummary = await PhotoService().scanAndSyncPhotos();
 
       // 2. 运行聚类算法（会自动触发地址解析）
       await EventService().runClustering();
 
+      // 3. 聚类完成后再做 AI 分析，确保 eventId 已建立
+      await AIService().analyzePhotosInBackground();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ 数据已更新：新增${scanSummary.insertedCount}张，可用总数${scanSummary.totalAfter}张',
+            ),
+          ),
+        );
+      }
+    } on PhotoScanException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('✅ 数据已更新')));
+        ).showSnackBar(SnackBar(content: Text('⚠️ ${e.message}')));
       }
     } catch (e) {
       if (mounted) {

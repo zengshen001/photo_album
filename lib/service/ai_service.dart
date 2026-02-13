@@ -3,6 +3,7 @@ import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:isar/isar.dart';
 import '../models/entity/photo_entity.dart';
+import '../utils/ai_score_helper.dart';
 import 'photo_service.dart';
 import 'event_service.dart';
 
@@ -124,24 +125,8 @@ class AIService {
   };
 
   // 🧠 核心方法：批量分析未处理的照片（包含人脸检测和情感分析）
-  Future<void> analyzePhotosInBackground() async {
+  Future<void> analyzePhotosInBackground({int batchSize = 10}) async {
     final isar = PhotoService().isar;
-
-    // 1. 捞出所有还没分析过 AI 的照片
-    // 每次限制 10 张，避免一次性占用太多内存
-    final photos = await isar
-        .collection<PhotoEntity>()
-        .filter()
-        .isAiAnalyzedEqualTo(false) // 只找 false 的
-        .limit(10)
-        .findAll();
-
-    if (photos.isEmpty) {
-      print("✅ 所有照片 AI 分析完成");
-      return;
-    }
-
-    print("🤖 开始 AI 视觉分析（含情感分析），本批次: ${photos.length} 张");
 
     // 2. 初始化 ML Kit 组件
     final ImageLabelerOptions labelerOptions = ImageLabelerOptions(
@@ -156,79 +141,99 @@ class AIService {
     );
     final faceDetector = FaceDetector(options: faceOptions);
 
-    // 3. 追踪受影响的事件 ID（用于批量通知）
-    final Set<int> affectedEventIds = {};
+    var totalAnalyzed = 0;
+    final affectedEventIds = <int>{};
 
-    for (final photo in photos) {
-      // 检查文件是否存在
-      final file = File(photo.path);
-      if (!file.existsSync()) {
-        // 文件丢了，标记为已处理以免死循环
-        await _markAsAnalyzed(photo.id, [], 0, 0.0, 0.0, isar);
-        print("⚠️ 文件不存在，跳过: ${photo.path}");
-        continue;
+    while (true) {
+      // 1. 捞出所有还没分析过 AI 的照片
+      final photos = await isar
+          .collection<PhotoEntity>()
+          .filter()
+          .isAiAnalyzedEqualTo(false)
+          .limit(batchSize)
+          .findAll();
+
+      if (photos.isEmpty) {
+        break;
       }
 
-      try {
-        final inputImage = InputImage.fromFile(file);
+      print("🤖 开始 AI 视觉分析（含情感分析），本批次: ${photos.length} 张");
 
-        // 📸 任务1：图像标签识别
-        final labels = await imageLabeler.processImage(inputImage);
-        List<String> validTags = [];
-        for (ImageLabel label in labels) {
-          final text = label.label;
-          // 如果有中文映射就用中文，没有就保留英文
-          final translated = _tagTranslation[text] ?? text;
-          validTags.add(translated);
+      for (final photo in photos) {
+        // 检查文件是否存在
+        final file = File(photo.path);
+        if (!file.existsSync()) {
+          // 文件丢了，标记为已处理以免死循环
+          await _markAsAnalyzed(photo.id, [], 0, 0.0, 0.0, isar);
+          print("⚠️ 文件不存在，跳过: ${photo.path}");
+          continue;
         }
 
-        // 😊 任务2：人脸检测和情感分析
-        final faces = await faceDetector.processImage(inputImage);
-        int faceCount = faces.length;
-        double maxSmileProb = 0.0;
+        try {
+          final inputImage = InputImage.fromFile(file);
 
-        // 找到最高的微笑概率
-        for (Face face in faces) {
-          if (face.smilingProbability != null) {
-            final prob = face.smilingProbability!;
-            if (prob > maxSmileProb) {
-              maxSmileProb = prob;
+          // 📸 任务1：图像标签识别
+          final labels = await imageLabeler.processImage(inputImage);
+          List<String> validTags = [];
+          for (ImageLabel label in labels) {
+            final text = label.label;
+            // 如果有中文映射就用中文，没有就保留英文
+            final translated = _tagTranslation[text] ?? text;
+            validTags.add(translated);
+          }
+
+          // 😊 任务2：人脸检测和情感分析
+          final faces = await faceDetector.processImage(inputImage);
+          int faceCount = faces.length;
+          double maxSmileProb = 0.0;
+
+          // 找到最高的微笑概率
+          for (Face face in faces) {
+            if (face.smilingProbability != null) {
+              final prob = face.smilingProbability!;
+              if (prob > maxSmileProb) {
+                maxSmileProb = prob;
+              }
             }
           }
+
+          // 🎯 计算综合 joyScore
+          double joyScore = AIScoreHelper.calculateJoyScore(
+            faceCount: faceCount,
+            maxSmileProb: maxSmileProb,
+            tags: validTags,
+          );
+
+          // 💾 存入数据库
+          await _markAsAnalyzed(
+            photo.id,
+            validTags,
+            faceCount,
+            maxSmileProb,
+            joyScore,
+            isar,
+          );
+
+          // 🔗 收集受影响的事件 ID
+          if (photo.eventId != null) {
+            affectedEventIds.add(photo.eventId!);
+          }
+
+          final fileName = photo.path.split('/').last;
+          print(
+            "✅ [AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}",
+          );
+        } catch (e) {
+          print("❌ AI 分析失败: $e");
+          // 失败了也暂时标记为 true，避免死循环
+          await _markAsAnalyzed(photo.id, [], 0, 0.0, 0.0, isar);
         }
 
-        // 🎯 计算综合 joyScore
-        double joyScore = _calculateJoyScore(
-          faceCount: faceCount,
-          maxSmileProb: maxSmileProb,
-          tags: validTags,
-        );
+        totalAnalyzed++;
 
-        // 💾 存入数据库
-        await _markAsAnalyzed(
-          photo.id,
-          validTags,
-          faceCount,
-          maxSmileProb,
-          joyScore,
-          isar,
-        );
-
-        // 🔗 收集受影响的事件 ID
-        if (photo.eventId != null) {
-          affectedEventIds.add(photo.eventId!);
-        }
-
-        final fileName = photo.path.split('/').last;
-        print("✅ [AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}");
-      } catch (e) {
-        print("❌ AI 分析失败: $e");
-        // 失败了也暂时标记为 true，避免死循环
-        await _markAsAnalyzed(photo.id, [], 0, 0.0, 0.0, isar);
+        // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
+        await Future.delayed(const Duration(milliseconds: 100));
       }
-
-      // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
-      await Future.delayed(const Duration(milliseconds: 100));
     }
 
     // 6. 关闭资源
@@ -238,35 +243,10 @@ class AIService {
     // 🔔 批量通知 EventService 刷新智能信息
     if (affectedEventIds.isNotEmpty) {
       print("🔔 通知 EventService 刷新 ${affectedEventIds.length} 个事件");
-      EventService().refreshEventSmartInfo(affectedEventIds.toList());
+      await EventService().refreshEventSmartInfo(affectedEventIds.toList());
     }
 
-    // 🔄 递归调用：如果还有没处理的，继续下一批
-    // 这样形成一个后台队列，直到所有照片处理完
-    analyzePhotosInBackground();
-  }
-
-  // 🎯 计算综合欢乐值评分
-  double _calculateJoyScore({
-    required int faceCount,
-    required double maxSmileProb,
-    required List<String> tags,
-  }) {
-    // 场景1：有人脸，直接使用微笑概率
-    if (faceCount > 0 && maxSmileProb > 0) {
-      return maxSmileProb;
-    }
-
-    // 场景2：无人脸，但有特定"愉悦"标签，给予中等分数
-    final joyfulTags = ['美食', '日落', '日出', '花朵', '宠物', '猫', '狗'];
-    bool hasJoyfulTag = tags.any((tag) => joyfulTags.contains(tag));
-
-    if (hasJoyfulTag) {
-      return 0.5; // 中等愉悦度
-    }
-
-    // 场景3：其他情况，默认为 0
-    return 0.0;
+    print("✅ 所有照片 AI 分析完成，总计处理: $totalAnalyzed 张");
   }
 
   // 将 AI 分析结果写入数据库（增强版）

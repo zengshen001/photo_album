@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import '../ai_theme.dart';
 import 'photo_entity.dart';
 import '../event.dart';
 import '../vo/photo.dart';
@@ -75,7 +76,8 @@ class EventEntity {
   // 🔄 转换为 UI 层的 Event 模型
   Future<Event> toUIModel(Isar isar) async {
     // 1. 根据 photoIds 查询出所有照片
-    final photoEntities = await isar.collection<PhotoEntity>()
+    final photoEntities = await isar
+        .collection<PhotoEntity>()
         .where()
         .anyOf(photoIds, (q, id) => q.idEqualTo(id))
         .sortByTimestamp() // 按时间顺序排列
@@ -93,6 +95,8 @@ class EventEntity {
     }).toList();
 
     // 3. 构造 Event 对象
+    final themes = _buildAiThemes();
+
     return Event(
       id: id.toString(),
       title: title,
@@ -103,8 +107,58 @@ class EventEntity {
       endDate: DateTime.fromMillisecondsSinceEpoch(endTime),
       photos: photos,
       tags: tags,
-      aiThemes: [], // AI 主题暂时为空，后续可以根据标签生成
+      aiThemes: themes,
     );
+  }
+
+  List<AITheme> _buildAiThemes() {
+    final sourceTitles = <String>[];
+
+    if (aiThemes != null && aiThemes!.isNotEmpty) {
+      sourceTitles.addAll(aiThemes!);
+    }
+
+    if (sourceTitles.isEmpty) {
+      sourceTitles.addAll(tags.take(3).map((tag) => '$tag时光'));
+    }
+
+    if (sourceTitles.isEmpty) {
+      sourceTitles.add('$location的回忆');
+    }
+
+    return sourceTitles.asMap().entries.map((entry) {
+      final title = entry.value;
+      return AITheme(
+        id: 'theme_${id}_${entry.key}',
+        emoji: _inferEmoji(title),
+        title: title,
+        subtitle: _buildSubtitle(title),
+      );
+    }).toList();
+  }
+
+  String _inferEmoji(String title) {
+    if (title.contains('海') || title.contains('沙滩')) return '🌊';
+    if (title.contains('山')) return '⛰️';
+    if (title.contains('花')) return '🌸';
+    if (title.contains('美食') || title.contains('吃')) return '🍜';
+    if (title.contains('猫') || title.contains('狗') || title.contains('宠物')) {
+      return '🐾';
+    }
+    if (title.contains('夜') || title.contains('星')) return '🌃';
+    return '📸';
+  }
+
+  String _buildSubtitle(String title) {
+    if (title.contains('回忆') || title.contains('记忆')) {
+      return '把这一刻写成故事';
+    }
+
+    if (title.contains('时光')) {
+      return '用第一人称记录当时的心情';
+    }
+
+    return '$title，值得再次回看';
   }
 
   // 📊 从照片列表生成事件的工厂方法
@@ -124,15 +178,16 @@ class EventEntity {
       ..coverPhotoId = photos.first.id;
 
     // 计算中心坐标
-    final photosWithGPS =
-        photos.where((p) => p.latitude != null && p.longitude != null).toList();
+    final photosWithGPS = photos
+        .where((p) => p.latitude != null && p.longitude != null)
+        .toList();
     if (photosWithGPS.isNotEmpty) {
       event.avgLatitude =
           photosWithGPS.map((p) => p.latitude!).reduce((a, b) => a + b) /
-              photosWithGPS.length;
+          photosWithGPS.length;
       event.avgLongitude =
           photosWithGPS.map((p) => p.longitude!).reduce((a, b) => a + b) /
-              photosWithGPS.length;
+          photosWithGPS.length;
     }
 
     // 聚合标签（取出现频率最高的前5个）

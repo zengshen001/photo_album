@@ -41,11 +41,15 @@ class StoryResultPage extends StatefulWidget {
         ? Photo(
             id: photos.first.assetId,
             path: photos.first.path,
-            dateTaken: DateTime.fromMillisecondsSinceEpoch(photos.first.timestamp),
+            dateTaken: DateTime.fromMillisecondsSinceEpoch(
+              photos.first.timestamp,
+            ),
             tags: photos.first.aiTags ?? [],
             location: photos.first.city ?? photos.first.province,
           )
-        : (sectionMaps.isNotEmpty ? sectionMaps.first['photo'] as Photo : throw Exception('No photos'));
+        : (sectionMaps.isNotEmpty
+              ? sectionMaps.first['photo'] as Photo
+              : throw Exception('No photos'));
 
     return StoryResultPage(
       title: storyEntity.title,
@@ -75,6 +79,8 @@ class StoryResultPage extends StatefulWidget {
 
 class _StoryResultPageState extends State<StoryResultPage> {
   late List<StorySection> _sections;
+  bool _isSaving = false;
+  bool _hasSaved = false;
 
   @override
   void initState() {
@@ -118,19 +124,28 @@ class _StoryResultPageState extends State<StoryResultPage> {
     );
   }
 
-  void _saveStory() async {
-    if (widget.storyEntityId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法保存：缺少故事ID')),
-      );
+  Future<void> _saveStory() async {
+    if (_isSaving) {
       return;
     }
+
+    if (widget.storyEntityId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('无法保存：缺少故事ID')));
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       // 1. 加载原始 StoryEntity
       final isar = PhotoService().isar;
-      final story = await isar.collection<StoryEntity>()
-          .get(widget.storyEntityId!);
+      final story = await isar.collection<StoryEntity>().get(
+        widget.storyEntityId!,
+      );
 
       if (story == null) {
         throw Exception('Story not found');
@@ -138,10 +153,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
 
       // 2. 将编辑后的 sections 转回 Markdown
       final sectionMaps = _sections.map((section) {
-        return {
-          'text': section.text,
-          'photo': section.photo,
-        };
+        return {'text': section.text, 'photo': section.photo};
       }).toList();
 
       final updatedContent = StoryEntity.sectionsToMarkdown(sectionMaps);
@@ -152,18 +164,41 @@ class _StoryResultPageState extends State<StoryResultPage> {
       // 4. 保存到数据库
       await StoryService().updateStory(story);
 
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _hasSaved = true;
+      });
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('故事已保存')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('故事已保存，可在故事页回查')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
+  }
+
+  void _closePage() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.pop(context, _hasSaved);
+      return;
+    }
+
+    Navigator.popUntil(context, (route) => route.isFirst);
   }
 
   void _shareStory() {
@@ -294,16 +329,14 @@ class _StoryResultPageState extends State<StoryResultPage> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             TextButton.icon(
-              onPressed: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
-              },
+              onPressed: _closePage,
               icon: const Icon(Icons.close),
               label: const Text('关闭'),
             ),
             FilledButton.icon(
-              onPressed: _saveStory,
+              onPressed: _isSaving ? null : _saveStory,
               icon: const Icon(Icons.save),
-              label: const Text('保存'),
+              label: Text(_isSaving ? '保存中...' : '保存'),
             ),
             TextButton.icon(
               onPressed: _shareStory,

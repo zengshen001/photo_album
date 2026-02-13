@@ -1,18 +1,73 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import '../models/entity/event_entity.dart';
 
-/// LLM 服务 - 使用 Google Gemini API 生成创意标题
+/// LLM 服务 - 通过 OpenAI 兼容第三方中转站生成内容
 class LLMService {
   static final LLMService _instance = LLMService._internal();
   factory LLMService() => _instance;
-  LLMService._internal();
+  LLMService._internal({
+    String? apiKey,
+    String? baseUrl,
+    String? apiPath,
+    String? modelName,
+    Dio? dio,
+  }) : _apiKey = apiKey ?? _defaultApiKey,
+       _baseUrl = baseUrl ?? _defaultBaseUrl,
+       _apiPath = apiPath ?? _defaultApiPath,
+       _modelName = modelName ?? _defaultModelName,
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 20),
+               receiveTimeout: const Duration(seconds: 60),
+               sendTimeout: const Duration(seconds: 20),
+               contentType: 'application/json',
+             ),
+           );
 
-  // 🔑 Gemini API Key（请在这里填入你的 API Key）
-  // 获取方式：https://makersuite.google.com/app/apikey
-  static const String _apiKey = "YOUR_GEMINI_API_KEY_HERE";
+  factory LLMService.forTest({
+    required String apiKey,
+    required String baseUrl,
+    String apiPath = '/responses',
+    String modelName = 'gpt-5.1-codex',
+    Dio? dio,
+  }) {
+    return LLMService._internal(
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      apiPath: apiPath,
+      modelName: modelName,
+      dio: dio,
+    );
+  }
 
-  // 配置 Gemini 模型
-  static const String _modelName = "gemini-1.5-flash"; // 使用快速模型
+  // 通过 --dart-define 配置，避免硬编码凭证
+  static const String _defaultApiKey = String.fromEnvironment(
+    'LLM_API_KEY',
+    defaultValue:
+        'sk-41f33a2c8542668e0baa1f297ae9431eb095e1ed10346c594373b6506697d813',
+  );
+  static const String _defaultBaseUrl = String.fromEnvironment(
+    'LLM_BASE_URL',
+    defaultValue: 'http://api.yescode.cloud/v1',
+  );
+  static const String _defaultApiPath = String.fromEnvironment(
+    'LLM_API_PATH',
+    defaultValue: '/responses',
+  );
+  static const String _defaultModelName = String.fromEnvironment(
+    'LLM_MODEL',
+    defaultValue: 'gpt-5.1-codex',
+  );
+
+  final String _apiKey;
+  final String _baseUrl;
+  final String _apiPath;
+  final String _modelName;
+  final Dio _dio;
 
   /// 🎨 核心方法：生成创意标题
   ///
@@ -29,17 +84,10 @@ class LLMService {
       // 1. 构造 Prompt
       final prompt = _buildPrompt(event, topTags);
 
-      // 2. 调用 Gemini API
-      final model = GenerativeModel(
-        model: _modelName,
-        apiKey: _apiKey,
-      );
-
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
+      // 2. 调用第三方中转站（OpenAI 兼容）
+      final text = await _chatCompletion(prompt);
 
       // 3. 解析返回结果
-      final text = response.text;
       if (text == null || text.isEmpty) {
         print("⚠️ LLM 返回为空，使用兜底逻辑");
         return _getFallbackTitles(event);
@@ -71,8 +119,9 @@ class LLMService {
     final location = event.city ?? event.province ?? '未知地点';
     final season = event.season;
     final tagsStr = topTags.isNotEmpty ? topTags.join(', ') : '无';
-    final joyScore =
-        event.joyScore != null ? event.joyScore!.toStringAsFixed(2) : '未知';
+    final joyScore = event.joyScore != null
+        ? event.joyScore!.toStringAsFixed(2)
+        : '未知';
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -146,11 +195,7 @@ class LLMService {
     final location = event.city ?? event.province ?? '未知地点';
     final dateRange = event.dateRangeText;
 
-    return [
-      '$location · $dateRange',
-      '$location 的记忆',
-      '时光印记 · $location',
-    ];
+    return ['$location · $dateRange', '$location 的记忆', '时光印记 · $location'];
   }
 
   /// 🧪 测试方法：模拟 LLM 调用（用于开发测试，无需真实 API Key）
@@ -172,19 +217,9 @@ class LLMService {
         '美食地图 · $location',
       ];
     } else if (topTags.contains('海滩') || topTags.contains('大海')) {
-      return [
-        '$location · 海风与阳光',
-        '夏日海边的慢时光',
-        '蓝色记忆 · $location',
-        '海的呼唤',
-      ];
+      return ['$location · 海风与阳光', '夏日海边的慢时光', '蓝色记忆 · $location', '海的呼唤'];
     } else if (topTags.contains('猫') || topTags.contains('狗')) {
-      return [
-        '毛孩子的快乐时光',
-        '萌宠日记 · $location',
-        '治愈时刻',
-        '毛茸茸的陪伴',
-      ];
+      return ['毛孩子的快乐时光', '萌宠日记 · $location', '治愈时刻', '毛茸茸的陪伴'];
     } else {
       return [
         '$location · ${event.dateRangeText}',
@@ -197,7 +232,7 @@ class LLMService {
 
   /// 📊 检查 API Key 是否已配置
   bool get isApiKeyConfigured =>
-      _apiKey.isNotEmpty && _apiKey != "YOUR_GEMINI_API_KEY_HERE";
+      _apiKey.trim().isNotEmpty && _baseUrl.trim().isNotEmpty;
 
   /// 📝 生成博客文本内容
   ///
@@ -207,16 +242,7 @@ class LLMService {
   /// 返回: 生成的 Markdown 格式博客正文
   Future<String?> generateBlogText(String prompt) async {
     try {
-      // 调用 Gemini API
-      final model = GenerativeModel(
-        model: _modelName,
-        apiKey: _apiKey,
-      );
-
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
-
-      final text = response.text;
+      final text = await _chatCompletion(prompt);
       if (text == null || text.isEmpty) {
         print("⚠️ LLM 返回为空");
         return null;
@@ -228,5 +254,120 @@ class LLMService {
       print("❌ LLM 博客生成失败: $e");
       return null;
     }
+  }
+
+  Future<String?> _chatCompletion(String prompt) async {
+    final baseUrl = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
+    final apiPath = _apiPath.startsWith('/') ? _apiPath : '/$_apiPath';
+
+    final requestBody = {
+      'model': _modelName,
+      // 隐私约束：仅发送文本摘要，不发送图片二进制/URL
+      'input': [
+        {
+          'role': 'user',
+          'content': [
+            {
+              'type': 'input_text',
+              'text': '你是一个中文摄影故事与标题助手。只能基于输入信息生成，不要编造未提供事实。',
+            },
+            {'type': 'input_text', 'text': prompt},
+          ],
+        },
+      ],
+    };
+
+    print('🌐 [LLM REQUEST] POST $baseUrl$apiPath');
+    print('🧾 [LLM REQUEST BODY] ${jsonEncode(requestBody)}');
+
+    final response = await _dio.post(
+      '$baseUrl$apiPath',
+      options: Options(headers: {'Authorization': 'Bearer $_apiKey'}),
+      data: requestBody,
+    );
+
+    final data = response.data;
+    print('📥 [LLM RESPONSE STATUS] ${response.statusCode}');
+    print('📦 [LLM RESPONSE BODY] ${jsonEncode(data)}');
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final outputText = _extractResponseText(data);
+    if (outputText != null && outputText.isNotEmpty) {
+      return outputText;
+    }
+
+    // 兼容部分中转站仍走 chat/completions 返回格式
+    final choices = data['choices'];
+    if (choices is! List || choices.isEmpty) {
+      return null;
+    }
+
+    final first = choices.first;
+    if (first is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final message = first['message'];
+    if (message is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final content = message['content'];
+    if (content is String) {
+      return content;
+    }
+
+    // 兼容部分中转站返回 content 为数组块
+    if (content is List) {
+      final buffer = StringBuffer();
+      for (final item in content) {
+        if (item is Map<String, dynamic> && item['text'] is String) {
+          buffer.write(item['text'] as String);
+        }
+      }
+      return buffer.toString();
+    }
+
+    return null;
+  }
+
+  String? _extractResponseText(Map<String, dynamic> data) {
+    final direct = data['output_text'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+
+    final output = data['output'];
+    if (output is! List) {
+      return null;
+    }
+
+    final buffer = StringBuffer();
+    for (final item in output) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+      final content = item['content'];
+      if (content is! List) {
+        continue;
+      }
+      for (final part in content) {
+        if (part is! Map<String, dynamic>) {
+          continue;
+        }
+
+        final text = part['text'];
+        if (text is String) {
+          buffer.write(text);
+        }
+      }
+    }
+
+    final result = buffer.toString().trim();
+    return result.isEmpty ? null : result;
   }
 }

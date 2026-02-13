@@ -6,10 +6,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('我的'), elevation: 0),
       body: ListView(
         children: [
           const SizedBox(height: 20),
@@ -48,12 +45,7 @@ class ProfilePage extends StatelessWidget {
             '隐私设置',
             '本地优先，保护隐私',
           ),
-          _buildSettingsTile(
-            context,
-            Icons.info_outline,
-            '关于',
-            '版本 1.0.0',
-          ),
+          _buildSettingsTile(context, Icons.info_outline, '关于', '版本 1.0.0'),
         ],
       ),
     );

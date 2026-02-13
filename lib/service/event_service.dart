@@ -1,8 +1,9 @@
-import 'dart:math';
-import 'package:dio/dio.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:isar/isar.dart';
 import '../models/entity/photo_entity.dart';
 import '../models/entity/event_entity.dart';
+import '../utils/event_cluster_helper.dart';
+import '../utils/location_helper.dart';
 import '../utils/smart_title_generator.dart';
 import '../service/llm_service.dart';
 import 'photo_service.dart';
@@ -12,14 +13,9 @@ class EventService {
   factory EventService() => _instance;
   EventService._internal();
 
-  final Dio _dio = Dio();
-
-  // 🔑 你的高德 Web 服务 Key (一定要去申请一个填在这里)
-  static const String _amapWebKey = "你的高德Key填在这里";
-
   // 📊 聚类算法配置
-  static const int timeThresholdHours = 3; // 时间间隔阈值（小时）
-  static const double distanceThresholdKm = 20.0; // 距离阈值（公里）
+  static const int timeThresholdHours = 2; // 时间间隔阈值（小时）
+  static const double distanceThresholdKm = 1.0; // 距离阈值（公里）
 
   // 🧮 核心方法：运行时空聚类算法
   Future<void> runClustering() async {
@@ -43,55 +39,11 @@ class EventService {
     final photos = allPhotos.reversed.toList();
 
     // 3. 聚类逻辑
-    final List<List<PhotoEntity>> clusters = [];
-    List<PhotoEntity> currentCluster = [photos[0]];
-
-    for (int i = 1; i < photos.length; i++) {
-      final prev = photos[i - 1];
-      final curr = photos[i];
-
-      // 计算时间间隔（毫秒转小时）
-      final timeDiff = (curr.timestamp - prev.timestamp) / (1000 * 60 * 60);
-
-      // 计算地理距离（如果有GPS）
-      double? distance;
-      if (prev.latitude != null &&
-          prev.longitude != null &&
-          curr.latitude != null &&
-          curr.longitude != null) {
-        distance = _calculateDistance(
-          prev.latitude!,
-          prev.longitude!,
-          curr.latitude!,
-          curr.longitude!,
-        );
-      }
-
-      // 判断是否需要切分
-      bool shouldSplit = false;
-
-      if (timeDiff > timeThresholdHours) {
-        shouldSplit = true;
-        print("  ⏱️  时间间隔 ${timeDiff.toStringAsFixed(1)}h > ${timeThresholdHours}h，切分");
-      } else if (distance != null && distance > distanceThresholdKm) {
-        shouldSplit = true;
-        print("  📍 距离 ${distance.toStringAsFixed(1)}km > ${distanceThresholdKm}km，切分");
-      }
-
-      if (shouldSplit) {
-        // 保存当前聚类，开始新聚类
-        clusters.add(currentCluster);
-        currentCluster = [curr];
-      } else {
-        // 继续当前聚类
-        currentCluster.add(curr);
-      }
-    }
-
-    // 添加最后一个聚类
-    if (currentCluster.isNotEmpty) {
-      clusters.add(currentCluster);
-    }
+    final clusters = EventClusterHelper.clusterPhotos(
+      photos: photos,
+      timeThresholdHours: timeThresholdHours,
+      distanceThresholdKm: distanceThresholdKm,
+    );
 
     print("✅ 聚类完成，共生成 ${clusters.length} 个事件");
 
@@ -141,51 +93,37 @@ class EventService {
 
     for (final event in events) {
       try {
-        // 使用事件中心点调用高德 API
-        final response = await _dio.get(
-          "https://restapi.amap.com/v3/geocode/regeo",
-          queryParameters: {
-            "key": _amapWebKey,
-            "location": "${event.avgLongitude},${event.avgLatitude}",
-            "extensions": "base",
-            "radius": 1000,
-            "coordsys": "gps", // GPS 坐标
-          },
+        final placemarks = await placemarkFromCoordinates(
+          event.avgLatitude!,
+          event.avgLongitude!,
         );
+        final locationInfo = LocationHelper.resolveFromPlacemarks(placemarks);
+        final province = locationInfo.province;
+        final city = locationInfo.city;
 
-        if (response.statusCode == 200 && response.data['status'] == '1') {
-          final regeocode = response.data['regeocode'];
-          final addressComponent = regeocode['addressComponent'];
+        await isar.writeTxn(() async {
+          final e = await isar.collection<EventEntity>().get(event.id);
+          if (e == null) {
+            return;
+          }
 
-          await isar.writeTxn(() async {
-            final e = await isar.collection<EventEntity>().get(event.id);
-            if (e != null) {
-              // 更新地址信息
-              final rawProvince = addressComponent['province'];
-              final rawCity = addressComponent['city'];
+          e.province = (province != null && province.isNotEmpty)
+              ? province
+              : null;
+          if (city != null && city.isNotEmpty) {
+            e.city = city;
+          } else {
+            e.city = e.province;
+          }
 
-              e.province = rawProvince is String ? rawProvince : "";
+          if (e.city != null && e.city!.isNotEmpty) {
+            e.title = "${e.city} · ${e.dateRangeText}";
+          }
 
-              // 处理直辖市
-              if (rawCity is String && rawCity.isNotEmpty) {
-                e.city = rawCity;
-              } else {
-                e.city = e.province;
-              }
+          await isar.collection<EventEntity>().put(e);
+        });
 
-              // 如果有 city，更新 title 为 "城市 · 日期"
-              if (e.city != null && e.city!.isNotEmpty) {
-                e.title = "${e.city} · ${e.dateRangeText}";
-              }
-
-              await isar.collection<EventEntity>().put(e);
-            }
-          });
-
-          print("📍 事件地址解析成功: ${event.title} -> ${addressComponent['city'] ?? addressComponent['province']}");
-        } else {
-          print("⚠️ 高德 API 业务错误: ${response.data['info']}");
-        }
+        print("📍 事件地址解析成功: ${event.title} -> ${city ?? province ?? '未知地点'}");
       } catch (e) {
         print("❌ 地址解析失败: $e");
       }
@@ -198,31 +136,6 @@ class EventService {
     _resolveEventLocations();
   }
 
-  // 📐 计算两点间的距离（Haversine 公式，单位：公里）
-  double _calculateDistance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const R = 6371.0; // 地球半径（公里）
-    final dLat = _toRadians(lat2 - lat1);
-    final dLon = _toRadians(lon2 - lon1);
-
-    final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) *
-            cos(_toRadians(lat2)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return R * c;
-  }
-
-  double _toRadians(double degree) {
-    return degree * pi / 180;
-  }
-
   // 📊 获取事件统计信息
   Future<Map<String, int>> getEventStats() async {
     final isar = PhotoService().isar;
@@ -233,10 +146,7 @@ class EventService {
         .cityIsNotNull()
         .count();
 
-    return {
-      'total': total,
-      'withLocation': withLocation,
-    };
+    return {'total': total, 'withLocation': withLocation};
   }
 
   // 🔄 获取事件流（UI 监听用）
@@ -308,6 +218,7 @@ class EventService {
             e.joyScore = stats['avgJoyScore'];
             e.analyzedPhotoCount = stats['analyzedCount'] as int;
             e.coverPhotoId = stats['bestPhotoId'] as int?;
+            e.tags = _extractTopTags(stats, 5);
 
             if (shouldUseLLM) {
               // 📡 Phase 2: LLM 生成创意标题
@@ -317,10 +228,16 @@ class EventService {
                 // 检查是否使用模拟模式（如果 API Key 未配置）
                 final llmService = LLMService();
                 if (llmService.isApiKeyConfigured) {
-                  generatedTitles = await llmService.generateCreativeTitles(e, topTags);
+                  generatedTitles = await llmService.generateCreativeTitles(
+                    e,
+                    topTags,
+                  );
                 } else {
-                  print("  ⚠️ Gemini API Key 未配置，使用模拟模式");
-                  generatedTitles = await llmService.generateCreativeTitlesMock(e, topTags);
+                  print("  ⚠️ LLM API Key 未配置，使用模拟模式");
+                  generatedTitles = await llmService.generateCreativeTitlesMock(
+                    e,
+                    topTags,
+                  );
                 }
 
                 e.aiThemes = generatedTitles;
@@ -338,7 +255,9 @@ class EventService {
               generatedTitles = [_generateLocalTitle(e, stats)];
               e.aiThemes = generatedTitles;
               e.isLlmGenerated = false;
-              print("  🏠 [本地] 生成规则标题: ${generatedTitles.first} (进度: $progress%)");
+              print(
+                "  🏠 [本地] 生成规则标题: ${generatedTitles.first} (进度: $progress%)",
+              );
             }
 
             // 更新默认显示标题（使用第一个生成的标题）
@@ -348,7 +267,8 @@ class EventService {
 
             await isar.collection<EventEntity>().put(e);
             print(
-                "  ✅ 事件 $eventId 已更新：封面=${e.coverPhotoId} 欢乐=${e.joyScore?.toStringAsFixed(2)} 进度=$progress%");
+              "  ✅ 事件 $eventId 已更新：封面=${e.coverPhotoId} 欢乐=${e.joyScore?.toStringAsFixed(2)} 进度=$progress%",
+            );
           }
         });
       } catch (e) {
