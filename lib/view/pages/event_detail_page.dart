@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
+import '../widgets/path_image.dart';
 import 'config_page.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -168,7 +170,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(photo.path, fit: BoxFit.cover),
+                      PathImage(path: photo.path, fit: BoxFit.cover),
                       if (!isSelected)
                         Container(color: Colors.black.withValues(alpha: 0.5)),
                       if (isSelected)

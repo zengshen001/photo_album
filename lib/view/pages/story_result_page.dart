@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../../models/vo/photo.dart';
 import '../../models/story.dart';
 import '../../models/entity/story_entity.dart';
 import '../../models/entity/photo_entity.dart';
 import '../../service/photo_service.dart';
 import '../../service/story_service.dart';
+import '../widgets/path_image.dart';
 
 class StoryResultPage extends StatefulWidget {
   final String title;
@@ -234,7 +236,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(widget.heroImage.path, fit: BoxFit.cover),
+                  PathImage(path: widget.heroImage.path, fit: BoxFit.cover),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -308,8 +310,8 @@ class _StoryResultPageState extends State<StoryResultPage> {
                     // Photo
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        section.photo.path,
+                      child: PathImage(
+                        path: section.photo.path,
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),

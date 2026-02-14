@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../models/event.dart';
 import '../pages/event_detail_page.dart';
+import 'path_image.dart';
 
 class EventCard extends StatelessWidget {
   final Event event;
@@ -95,8 +97,8 @@ class EventCard extends StatelessWidget {
     }
 
     if (coverPhotos.length == 1) {
-      return Image.network(
-        coverPhotos[0].path,
+      return PathImage(
+        path: coverPhotos[0].path,
         height: 200,
         width: double.infinity,
         fit: BoxFit.cover,
@@ -113,8 +115,8 @@ class EventCard extends StatelessWidget {
               padding: EdgeInsets.only(
                 right: entry.key < coverPhotos.length - 1 ? 2 : 0,
               ),
-              child: Image.network(
-                entry.value.path,
+              child: PathImage(
+                path: entry.value.path,
                 height: 200,
                 fit: BoxFit.cover,
               ),

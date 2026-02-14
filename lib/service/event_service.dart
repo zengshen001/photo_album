@@ -1,9 +1,10 @@
-import 'package:geocoding/geocoding.dart';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:isar/isar.dart';
 import '../models/entity/photo_entity.dart';
 import '../models/entity/event_entity.dart';
 import '../utils/event_cluster_helper.dart';
-import '../utils/location_helper.dart';
 import '../utils/smart_title_generator.dart';
 import '../service/llm_service.dart';
 import 'photo_service.dart';
@@ -12,6 +13,20 @@ class EventService {
   static final EventService _instance = EventService._internal();
   factory EventService() => _instance;
   EventService._internal();
+
+  static const String _amapWebKey = String.fromEnvironment(
+    'AMAP_WEB_KEY',
+    defaultValue: '',
+  );
+
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 10),
+      responseType: ResponseType.json,
+    ),
+  );
 
   // 📊 聚类算法配置
   static const int timeThresholdHours = 2; // 时间间隔阈值（小时）
@@ -73,6 +88,11 @@ class EventService {
 
   // 🌏 后台任务：为事件解析地址（仅解析中心点）
   Future<void> _resolveEventLocations() async {
+    if (_amapWebKey.trim().isEmpty) {
+      print("⚠️ AMAP_WEB_KEY 未配置，跳过地址解析");
+      return;
+    }
+
     final isar = PhotoService().isar;
 
     // 查询需要解析地址的事件（有GPS但 city 为空）
@@ -93,13 +113,18 @@ class EventService {
 
     for (final event in events) {
       try {
-        final placemarks = await placemarkFromCoordinates(
-          event.avgLatitude!,
-          event.avgLongitude!,
+        print(
+          "开始解析事件地址: id=${event.id} lat=${event.avgLatitude} lon=${event.avgLongitude}",
         );
-        final locationInfo = LocationHelper.resolveFromPlacemarks(placemarks);
-        final province = locationInfo.province;
-        final city = locationInfo.city;
+        final data = await _reverseGeocodeWithAmap(
+          latitude: event.avgLatitude!,
+          longitude: event.avgLongitude!,
+        );
+
+        final province = _extractNonEmptyString(data, ['province']);
+        String? city = _extractNonEmptyString(data, ['city']);
+        city ??= _extractNonEmptyString(data, ['district']);
+        city ??= province;
 
         await isar.writeTxn(() async {
           final e = await isar.collection<EventEntity>().get(event.id);
@@ -107,14 +132,8 @@ class EventService {
             return;
           }
 
-          e.province = (province != null && province.isNotEmpty)
-              ? province
-              : null;
-          if (city != null && city.isNotEmpty) {
-            e.city = city;
-          } else {
-            e.city = e.province;
-          }
+          e.province = province;
+          e.city = city;
 
           if (e.city != null && e.city!.isNotEmpty) {
             e.title = "${e.city} · ${e.dateRangeText}";
@@ -129,11 +148,69 @@ class EventService {
       }
 
       // 延时，避免触发高德 API 限流
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1300));
     }
 
     // 🔄 递归调用，处理剩余事件
     _resolveEventLocations();
+  }
+
+  Future<Map<String, dynamic>> _reverseGeocodeWithAmap({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _dio.get(
+      'https://restapi.amap.com/v3/geocode/regeo',
+      queryParameters: {
+        'key': _amapWebKey,
+        'location': '$longitude,$latitude',
+        'extensions': 'base',
+        'coordsys': 'gps',
+      },
+    );
+
+    final body = response.data;
+
+    print("高德地图返回值${jsonEncode(body)}");
+
+    if (body is! Map<String, dynamic>) {
+      throw Exception('高德返回格式异常');
+    }
+
+    if (body['status'] != '1') {
+      throw Exception('高德返回失败: ${body['info'] ?? '未知错误'}');
+    }
+
+    final regeocode = body['regeocode'];
+    if (regeocode is! Map<String, dynamic>) {
+      throw Exception('高德返回缺少regeocode');
+    }
+
+    final addressComponent = regeocode['addressComponent'];
+    if (addressComponent is! Map<String, dynamic>) {
+      throw Exception('高德返回缺少addressComponent');
+    }
+
+    return addressComponent;
+  }
+
+  String? _extractNonEmptyString(
+    Map<String, dynamic> source,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = source[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+      if (value is List && value.isNotEmpty) {
+        final first = value.first;
+        if (first is String && first.trim().isNotEmpty) {
+          return first.trim();
+        }
+      }
+    }
+    return null;
   }
 
   // 📊 获取事件统计信息

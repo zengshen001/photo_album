@@ -19,12 +19,16 @@ class _AlbumPageState extends State<AlbumPage> {
   late Stream<List<EventEntity>> _eventsStream;
 
   // 🔄 刷新数据：扫描相册 + 运行聚类
-  Future<void> _refreshData() async {
+  Future<void> _refreshData({bool clearCacheFirst = false}) async {
     if (_isRefreshing) return; // 防止重复点击
 
     setState(() => _isRefreshing = true);
 
     try {
+      if (clearCacheFirst) {
+        await PhotoService().clearAllCachedData();
+      }
+
       // 1. 扫描相册（仅入库原始可用数据）
       final scanSummary = await PhotoService().scanAndSyncPhotos();
 
@@ -38,7 +42,9 @@ class _AlbumPageState extends State<AlbumPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ 数据已更新：新增${scanSummary.insertedCount}张，可用总数${scanSummary.totalAfter}张',
+              clearCacheFirst
+                  ? '✅ 已清空缓存并完成重扫：新增${scanSummary.insertedCount}张，可用总数${scanSummary.totalAfter}张'
+                  : '✅ 数据已更新：新增${scanSummary.insertedCount}张，可用总数${scanSummary.totalAfter}张',
             ),
           ),
         );
@@ -60,6 +66,34 @@ class _AlbumPageState extends State<AlbumPage> {
     }
   }
 
+  Future<void> _resetCacheAndRescan() async {
+    if (_isRefreshing) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('刷新缓存并重扫'),
+          content: const Text('将清空 Isar 中的照片、事件、故事数据，并重新扫描相册。是否继续？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('继续'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _refreshData(clearCacheFirst: true);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +107,11 @@ class _AlbumPageState extends State<AlbumPage> {
         title: const Text('相册'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cleaning_services),
+            onPressed: _isRefreshing ? null : _resetCacheAndRescan,
+            tooltip: '清空缓存并重扫',
+          ),
           // 刷新按钮
           IconButton(
             icon: _isRefreshing
