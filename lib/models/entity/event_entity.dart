@@ -1,4 +1,6 @@
 import 'package:isar/isar.dart';
+import 'package:photo_manager/photo_manager.dart';
+
 import '../ai_theme.dart';
 import 'photo_entity.dart';
 import '../event.dart';
@@ -83,16 +85,20 @@ class EventEntity {
         .sortByTimestamp() // 按时间顺序排列
         .findAll();
 
-    // 2. 转换为 UI 层的 Photo 对象
-    final photos = photoEntities.map((entity) {
-      return Photo(
-        id: entity.assetId, // 使用 assetId 作为 Photo 的 id
-        path: entity.path,
-        dateTaken: DateTime.fromMillisecondsSinceEpoch(entity.timestamp),
-        tags: entity.aiTags ?? [],
-        location: entity.city ?? entity.province,
+    // 2. 转换为 UI 层的 Photo 对象（优先使用 assetId 解析当前可用路径）
+    final photos = <Photo>[];
+    for (final entity in photoEntities) {
+      final resolvedPath = await _resolvePhotoPath(entity);
+      photos.add(
+        Photo(
+          id: entity.assetId, // 使用 assetId 作为 Photo 的 id
+          path: resolvedPath,
+          dateTaken: DateTime.fromMillisecondsSinceEpoch(entity.timestamp),
+          tags: entity.aiTags ?? [],
+          location: entity.city ?? entity.province,
+        ),
       );
-    }).toList();
+    }
 
     // 3. 构造 Event 对象
     final themes = _buildAiThemes();
@@ -109,6 +115,12 @@ class EventEntity {
       tags: tags,
       aiThemes: themes,
     );
+  }
+
+  Future<String> _resolvePhotoPath(PhotoEntity entity) async {
+    final asset = await AssetEntity.fromId(entity.assetId);
+    final file = await asset?.file;
+    return file?.path ?? entity.path;
   }
 
   List<AITheme> _buildAiThemes() {

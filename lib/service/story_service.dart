@@ -1,4 +1,6 @@
 import 'package:isar/isar.dart';
+import 'package:photo_manager/photo_manager.dart';
+
 import '../models/entity/story_entity.dart';
 import '../models/entity/event_entity.dart';
 import '../models/entity/photo_entity.dart';
@@ -198,6 +200,23 @@ class StoryService {
         .anyOf(photoIds, (q, id) => q.idEqualTo(id))
         .sortByTimestamp()
         .findAll();
+
+    // 优先基于 assetId 解析当前可用路径，避免读取临时文件失效
+    for (final photo in photos) {
+      final asset = await AssetEntity.fromId(photo.assetId);
+      final file = await asset?.file;
+      final latestPath = file?.path;
+      if (latestPath != null &&
+          latestPath.isNotEmpty &&
+          latestPath != photo.path) {
+        photo.path = latestPath;
+      }
+    }
+
+    await isar.writeTxn(() async {
+      await isar.collection<PhotoEntity>().putAll(photos);
+    });
+
     return photos;
   }
 }

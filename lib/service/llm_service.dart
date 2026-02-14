@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import '../models/entity/event_entity.dart';
 
@@ -47,12 +45,11 @@ class LLMService {
   // 通过 --dart-define 配置，避免硬编码凭证
   static const String _defaultApiKey = String.fromEnvironment(
     'LLM_API_KEY',
-    defaultValue:
-        'sk-41f33a2c8542668e0baa1f297ae9431eb095e1ed10346c594373b6506697d813',
+    defaultValue: '',
   );
   static const String _defaultBaseUrl = String.fromEnvironment(
     'LLM_BASE_URL',
-    defaultValue: 'http://api.yescode.cloud/v1',
+    defaultValue: '',
   );
   static const String _defaultApiPath = String.fromEnvironment(
     'LLM_API_PATH',
@@ -60,7 +57,7 @@ class LLMService {
   );
   static const String _defaultModelName = String.fromEnvironment(
     'LLM_MODEL',
-    defaultValue: 'gpt-5.1-codex',
+    defaultValue: '',
   );
 
   final String _apiKey;
@@ -279,8 +276,8 @@ class LLMService {
       ],
     };
 
-    print('🌐 [LLM REQUEST] POST $baseUrl$apiPath');
-    print('🧾 [LLM REQUEST BODY] ${jsonEncode(requestBody)}');
+    // print('🌐 [LLM REQUEST] POST $baseUrl$apiPath');
+    // print('🧾 [LLM REQUEST BODY] ${jsonEncode(requestBody)}');
 
     final response = await _dio.post(
       '$baseUrl$apiPath',
@@ -290,7 +287,7 @@ class LLMService {
 
     final data = response.data;
     print('📥 [LLM RESPONSE STATUS] ${response.statusCode}');
-    print('📦 [LLM RESPONSE BODY] ${jsonEncode(data)}');
+    // print('📦 [LLM RESPONSE BODY] ${jsonEncode(data)}');
     if (data is! Map<String, dynamic>) {
       return null;
     }

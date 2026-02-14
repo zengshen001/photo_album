@@ -1,6 +1,8 @@
 class PhotoFilterHelper {
   const PhotoFilterHelper._();
 
+  static final RegExp _seedFileNamePattern = RegExp(r'\d{8}_\d{6}');
+
   static bool hasValidTimestamp(int timestampMs) {
     return timestampMs > 0;
   }
@@ -35,6 +37,17 @@ class PhotoFilterHelper {
     }
 
     const cameraPrefixes = ['img_', 'dsc_', 'pxl_', 'mvimg_'];
-    return cameraPrefixes.any((prefix) => fileName.startsWith(prefix));
+    if (cameraPrefixes.any((prefix) => fileName.startsWith(prefix))) {
+      return true;
+    }
+
+    // 兼容测试集重命名文件：文件名包含日期时间片段（yyyyMMdd_HHmmss）
+    const photoExtensions = ['.jpg', '.jpeg', '.heic', '.heif', '.png'];
+    final hasPhotoExtension = photoExtensions.any(fileName.endsWith);
+    if (!hasPhotoExtension) {
+      return false;
+    }
+
+    return _seedFileNamePattern.hasMatch(fileName);
   }
 }
