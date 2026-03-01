@@ -28,9 +28,32 @@ class EventService {
     ),
   );
 
-  // 📊 聚类算法配置
-  static const int timeThresholdHours = 2; // 时间间隔阈值（小时）
-  static const double distanceThresholdKm = 1.0; // 距离阈值（公里）
+  // 📊 聚类算法配置（旅游同日增强）
+  static const ClusterConfig _clusterConfig = ClusterConfig(
+    initialTimeThresholdHours: 4,
+    baseDistanceThresholdKm: 12,
+    sameCityTimeThresholdHours: 6,
+    sameCityDistanceThresholdKm: 20,
+    fallbackSameCityDistanceKm: 45,
+    sameDayMergeGapHours: 10,
+    crossDayMergeGapHours: 18,
+    minPhotosPerClusterForMerge: 1,
+    enableSameDayTravelMerge: true,
+    enableCrossDayTravelMerge: true,
+  );
+  static const int minPhotosForDisplay = 5;
+
+  static bool shouldResolvePhotoLocation({
+    required int eventPhotoCount,
+    required bool isLocationProcessed,
+    required double? latitude,
+    required double? longitude,
+  }) {
+    return eventPhotoCount >= minPhotosForDisplay &&
+        !isLocationProcessed &&
+        latitude != null &&
+        longitude != null;
+  }
 
   // 🧮 核心方法：运行时空聚类算法
   Future<void> runClustering() async {
@@ -54,13 +77,15 @@ class EventService {
     final photos = allPhotos.reversed.toList();
 
     // 3. 聚类逻辑
-    final clusters = EventClusterHelper.clusterPhotos(
+    final clusterResult = EventClusterHelper.clusterPhotos(
       photos: photos,
-      timeThresholdHours: timeThresholdHours,
-      distanceThresholdKm: distanceThresholdKm,
+      config: _clusterConfig,
     );
+    final clusters = clusterResult.clusters;
 
-    print("✅ 聚类完成，共生成 ${clusters.length} 个事件");
+    print(
+      "✅ 聚类完成: 初分簇=${clusterResult.initialClusterCount} 合并=${clusterResult.mergedCount} 最终事件=${clusters.length}",
+    );
 
     // 4. 将聚类结果存入数据库并设置 eventId 反向关联
     await isar.writeTxn(() async {
@@ -82,8 +107,9 @@ class EventService {
 
     print("💾 事件已存入数据库，照片关联已建立");
 
-    // 5. 启动地址解析
+    // 5. 启动地址解析（事件中心点 + 可展示事件中的逐图地址）
     _resolveEventLocations();
+    _resolvePhotoLocationsForVisibleEvents();
   }
 
   // 🌏 后台任务：为事件解析地址（仅解析中心点）
@@ -100,6 +126,7 @@ class EventService {
         .collection<EventEntity>()
         .filter()
         .avgLatitudeIsNotNull()
+        .photoCountGreaterThan(minPhotosForDisplay - 1)
         .cityIsNull()
         .limit(10) // 每次最多处理 10 个事件
         .findAll();
@@ -116,15 +143,22 @@ class EventService {
         print(
           "开始解析事件地址: id=${event.id} lat=${event.avgLatitude} lon=${event.avgLongitude}",
         );
-        final data = await _reverseGeocodeWithAmap(
+        final regeocode = await _reverseGeocodeWithAmap(
           latitude: event.avgLatitude!,
           longitude: event.avgLongitude!,
+          extensions: 'base',
         );
+        final data = regeocode['addressComponent'];
+        if (data is! Map<String, dynamic>) {
+          throw Exception('高德返回缺少addressComponent');
+        }
 
         final province = _extractNonEmptyString(data, ['province']);
         String? city = _extractNonEmptyString(data, ['city']);
         city ??= _extractNonEmptyString(data, ['district']);
         city ??= province;
+        final adcode = _extractNonEmptyString(data, ['adcode']);
+        final citycode = _extractNonEmptyString(data, ['citycode']);
 
         await isar.writeTxn(() async {
           final e = await isar.collection<EventEntity>().get(event.id);
@@ -142,7 +176,10 @@ class EventService {
           await isar.collection<EventEntity>().put(e);
         });
 
-        print("📍 事件地址解析成功: ${event.title} -> ${city ?? province ?? '未知地点'}");
+        print(
+          "📍 事件地址解析成功: ${event.title} -> ${city ?? province ?? '未知地点'} "
+          "(adcode=${adcode ?? '-'} citycode=${citycode ?? '-'})",
+        );
       } catch (e) {
         print("❌ 地址解析失败: $e");
       }
@@ -155,16 +192,121 @@ class EventService {
     _resolveEventLocations();
   }
 
+  // 🌏 后台任务：为可展示事件中的照片逐张解析地址（带缓存跳过）
+  Future<void> _resolvePhotoLocationsForVisibleEvents() async {
+    if (_amapWebKey.trim().isEmpty) {
+      return;
+    }
+
+    final isar = PhotoService().isar;
+    final visibleEvents = await isar
+        .collection<EventEntity>()
+        .filter()
+        .photoCountGreaterThan(minPhotosForDisplay - 1)
+        .findAll();
+    if (visibleEvents.isEmpty) {
+      return;
+    }
+
+    final eventIds = visibleEvents.map((event) => event.id).toList();
+    final eventPhotoCountById = {
+      for (final event in visibleEvents) event.id: event.photoCount,
+    };
+    final photos = await isar
+        .collection<PhotoEntity>()
+        .filter()
+        .anyOf(eventIds, (q, eventId) => q.eventIdEqualTo(eventId))
+        .isLocationProcessedEqualTo(false)
+        .latitudeIsNotNull()
+        .longitudeIsNotNull()
+        .limit(20)
+        .findAll();
+
+    if (photos.isEmpty) {
+      return;
+    }
+
+    print("🌏 开始逐图解析地址，本批次: ${photos.length} 张");
+
+    for (final photo in photos) {
+      final eventPhotoCount = eventPhotoCountById[photo.eventId];
+      if (eventPhotoCount == null ||
+          !shouldResolvePhotoLocation(
+            eventPhotoCount: eventPhotoCount,
+            isLocationProcessed: photo.isLocationProcessed,
+            latitude: photo.latitude,
+            longitude: photo.longitude,
+          )) {
+        continue;
+      }
+
+      final lat = photo.latitude;
+      final lon = photo.longitude;
+      if (lat == null || lon == null) {
+        continue;
+      }
+
+      try {
+        final regeocode = await _reverseGeocodeWithAmap(
+          latitude: lat,
+          longitude: lon,
+          extensions: 'all',
+        );
+        final addressComponent = regeocode['addressComponent'];
+        if (addressComponent is! Map<String, dynamic>) {
+          throw Exception('高德返回缺少addressComponent');
+        }
+
+        final formattedAddress = _extractNonEmptyString(regeocode, [
+          'formatted_address',
+        ]);
+        final district = _extractNonEmptyString(addressComponent, ['district']);
+        final adcode = _extractNonEmptyString(addressComponent, ['adcode']);
+        final province = _extractNonEmptyString(addressComponent, ['province']);
+        String? city = _extractNonEmptyString(addressComponent, ['city']);
+        city ??= district;
+        city ??= province;
+
+        await isar.writeTxn(() async {
+          final latest = await isar.collection<PhotoEntity>().get(photo.id);
+          if (latest == null) {
+            return;
+          }
+          latest.province = province;
+          latest.city = city;
+          latest.district = district;
+          latest.adcode = adcode;
+          latest.formattedAddress = formattedAddress;
+          latest.isLocationProcessed = true;
+          await isar.collection<PhotoEntity>().put(latest);
+        });
+
+        print(
+          "📌 照片地址解析成功: id=${photo.id} city=${city ?? '-'} district=${district ?? '-'}",
+        );
+      } catch (e) {
+        print("❌ 照片地址解析失败: id=${photo.id} error=$e");
+      }
+
+      // 逐图解析限流，避免触发高德 API 限频
+      await Future.delayed(const Duration(milliseconds: 450));
+    }
+
+    // 递归处理剩余未解析照片
+    _resolvePhotoLocationsForVisibleEvents();
+  }
+
   Future<Map<String, dynamic>> _reverseGeocodeWithAmap({
     required double latitude,
     required double longitude,
+    String extensions = 'base',
   }) async {
     final response = await _dio.get(
       'https://restapi.amap.com/v3/geocode/regeo',
       queryParameters: {
         'key': _amapWebKey,
         'location': '$longitude,$latitude',
-        'extensions': 'base',
+        'extensions': extensions,
         'coordsys': 'gps',
       },
     );
@@ -185,13 +327,7 @@ class EventService {
     if (regeocode is! Map<String, dynamic>) {
       throw Exception('高德返回缺少regeocode');
     }
-
-    final addressComponent = regeocode['addressComponent'];
-    if (addressComponent is! Map<String, dynamic>) {
-      throw Exception('高德返回缺少addressComponent');
-    }
-
-    return addressComponent;
+    return regeocode;
   }
 
   String? _extractNonEmptyString(
@@ -233,7 +369,12 @@ class EventService {
         .collection<EventEntity>()
         .where()
         .sortByStartTimeDesc() // 按时间倒序
-        .watch(fireImmediately: true);
+        .watch(fireImmediately: true)
+        .map(
+          (events) => events
+              .where((event) => event.photoCount >= minPhotosForDisplay)
+              .toList(),
+        );
   }
 
   // 🧠 核心方法：增量刷新事件的智能信息（混合标题生成）
@@ -250,6 +391,10 @@ class EventService {
         // 1. 获取事件
         final event = await isar.collection<EventEntity>().get(eventId);
         if (event == null) continue;
+        if (event.photoCount < minPhotosForDisplay) {
+          print("  ℹ️ 事件 $eventId 照片数(${event.photoCount})低于展示阈值，跳过智能信息刷新");
+          continue;
+        }
 
         // 2. 查询该事件下所有已分析的照片
         final analyzedPhotos = await isar

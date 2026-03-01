@@ -71,7 +71,7 @@ class PhotoService {
     print("🚀 开始扫描相册...");
 
     int skippedInvalidTime = 0;
-    int skippedNoGps = 0;
+    int insertedNoGps = 0;
     int skippedNonCamera = 0;
     int skippedScreenshot = 0;
     int insertedCount = 0;
@@ -119,15 +119,12 @@ class PhotoService {
         //   continue;
         // }
 
-        // 仅保留有有效 GPS 的相机照片
+        // 无 GPS 图片也入库，后续聚类会按“时间信号”参与
         final hasGps = PhotoFilterHelper.hasValidGps(
           latLong?.latitude,
           latLong?.longitude,
         );
-        if (!hasGps) {
-          skippedNoGps++;
-          continue;
-        }
+        if (!hasGps) insertedNoGps++;
 
         final newPhoto = PhotoEntity()
           ..assetId = asset.id
@@ -135,8 +132,8 @@ class PhotoService {
           ..path = file.path
           ..width = width
           ..height = height
-          ..latitude = latLong!.latitude
-          ..longitude = latLong.longitude
+          ..latitude = hasGps ? latLong!.latitude : null
+          ..longitude = hasGps ? latLong!.longitude : null
           ..isLocationProcessed = false;
 
         await _isar.collection<PhotoEntity>().put(newPhoto);
@@ -145,14 +142,14 @@ class PhotoService {
     });
 
     print(
-      "✅ 基础数据同步完成: 删除=$removedCount 入库=$insertedCount 跳过[无时间=$skippedInvalidTime 无GPS=$skippedNoGps  截图=$skippedScreenshot]",
+      "✅ 基础数据同步完成: 删除=$removedCount 入库=$insertedCount 其中无GPS入库=$insertedNoGps 跳过[无时间=$skippedInvalidTime 截图=$skippedScreenshot]",
     );
 
     final totalAfter = await _isar.collection<PhotoEntity>().count();
     if (totalAfter == 0) {
       throw const PhotoScanException(
         PhotoScanError.noEligiblePhoto,
-        '未找到可用照片：仅支持含时间和经纬度的相机照片。',
+        '未找到可用照片：请确认相册中存在包含有效时间的图片资源。',
       );
     }
 
@@ -163,7 +160,7 @@ class PhotoService {
       removedCount: removedCount,
       insertedCount: insertedCount,
       skippedInvalidTime: skippedInvalidTime,
-      skippedNoGps: skippedNoGps,
+      insertedNoGps: insertedNoGps,
       skippedNonCamera: skippedNonCamera,
       skippedScreenshot: skippedScreenshot,
     );
@@ -256,7 +253,7 @@ class PhotoScanSummary {
   final int removedCount;
   final int insertedCount;
   final int skippedInvalidTime;
-  final int skippedNoGps;
+  final int insertedNoGps;
   final int skippedNonCamera;
   final int skippedScreenshot;
 
@@ -266,7 +263,7 @@ class PhotoScanSummary {
     required this.removedCount,
     required this.insertedCount,
     required this.skippedInvalidTime,
-    required this.skippedNoGps,
+    required this.insertedNoGps,
     required this.skippedNonCamera,
     required this.skippedScreenshot,
   });

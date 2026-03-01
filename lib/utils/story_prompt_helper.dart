@@ -12,9 +12,32 @@ class StoryPromptHelper {
       final timeStr =
           '${time.month}月${time.day}日 ${time.hour}:${time.minute.toString().padLeft(2, '0')}';
       final tags = photo.aiTags?.join(', ') ?? '无标签';
-      final location = photo.city ?? photo.province ?? '';
+      final areaParts =
+          [photo.province?.trim(), photo.city?.trim(), photo.district?.trim()]
+              .where((item) => item != null && item.isNotEmpty)
+              .cast<String>()
+              .toList();
+      final areaText = areaParts.isEmpty ? '' : areaParts.join('');
+      final addressText = photo.formattedAddress?.trim() ?? '';
+      final hasGps = photo.latitude != null && photo.longitude != null;
+      final gpsText = hasGps
+          ? '${photo.latitude!.toStringAsFixed(6)},${photo.longitude!.toStringAsFixed(6)}'
+          : '';
+      final locationSegments = <String>[];
+      if (addressText.isNotEmpty) {
+        locationSegments.add('地址：$addressText');
+      }
+      if (areaText.isNotEmpty) {
+        locationSegments.add('行政区：$areaText');
+      }
+      if (gpsText.isNotEmpty) {
+        locationSegments.add('坐标：$gpsText');
+      }
+      final locationText = locationSegments.join('；');
       final desc =
-          'Image $i: 拍摄于 $timeStr${location.isNotEmpty ? '，地点：$location' : ''}，标签：$tags';
+          'Image $i: 拍摄于 $timeStr'
+          '${locationText.isNotEmpty ? '，位置线索：$locationText' : ''}'
+          '，标签：$tags';
       descriptions.add(desc);
     }
     return descriptions;
@@ -26,6 +49,7 @@ class StoryPromptHelper {
     required EventEntity event,
     required List<String> photoDescriptions,
     required bool isShort,
+    required String locationMode,
   }) {
     final location = event.city ?? event.province ?? '某地';
     final dateStart = DateTime.fromMillisecondsSinceEpoch(event.startTime);
@@ -37,6 +61,9 @@ class StoryPromptHelper {
 
     final wordCount = isShort ? '150-250' : '300-500';
     final minImages = (photoDescriptions.length / 2).ceil();
+    final eventCenter = event.avgLatitude != null && event.avgLongitude != null
+        ? '${event.avgLatitude!.toStringAsFixed(6)},${event.avgLongitude!.toStringAsFixed(6)}'
+        : '未知';
 
     return '''
 你是一位专业的生活记录博客作家。请根据以下信息撰写一篇第一人称的故事/博客。
@@ -45,6 +72,8 @@ class StoryPromptHelper {
 副标题/切入点：$subtitle
 事件时间：$dateRange
 地点：$location
+事件中心坐标：$eventCenter
+位置线索模式：$locationMode
 
 照片描述（共 ${photoDescriptions.length} 张）：
 ${photoDescriptions.map((d) => '- $d').join('\n')}
@@ -60,6 +89,9 @@ ${photoDescriptions.map((d) => '- $d').join('\n')}
 8. 使用 Markdown 格式
 9. 每个段落之后紧跟一张相关的照片
 10. 不要添加标题（我们会在UI中单独显示）
+11. 若照片有地址/行政区/坐标线索，可据此推断更具体景区或片区
+12. 严禁编造未提供的地名；证据不足时使用“附近区域/片区”描述
+13. 若位置线索模式为 `time-tag-only`，仅根据时间与标签叙事，不要强行给景区名
 
 示例格式：
 第一段文字内容...

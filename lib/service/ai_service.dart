@@ -3,6 +3,7 @@ import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:isar/isar.dart';
 import '../models/entity/photo_entity.dart';
+import '../models/entity/event_entity.dart';
 import '../utils/ai_score_helper.dart';
 import 'photo_service.dart';
 import 'event_service.dart';
@@ -127,6 +128,19 @@ class AIService {
   // 🧠 核心方法：批量分析未处理的照片（包含人脸检测和情感分析）
   Future<void> analyzePhotosInBackground({int batchSize = 10}) async {
     final isar = PhotoService().isar;
+    final visibleEvents = await isar
+        .collection<EventEntity>()
+        .where()
+        .findAll();
+    final eligibleEventIds = visibleEvents
+        .where((event) => event.photoCount >= EventService.minPhotosForDisplay)
+        .map((event) => event.id)
+        .toSet();
+
+    if (eligibleEventIds.isEmpty) {
+      print("ℹ️ 没有满足展示阈值的事件，跳过 AI 分析");
+      return;
+    }
 
     // 2. 初始化 ML Kit 组件
     final ImageLabelerOptions labelerOptions = ImageLabelerOptions(
@@ -145,13 +159,22 @@ class AIService {
     final affectedEventIds = <int>{};
 
     while (true) {
-      // 1. 捞出所有还没分析过 AI 的照片
-      final photos = await isar
+      // 1. 捞出还没分析过 AI 的照片（仅处理会展示的事件）
+      final pendingPhotos = await isar
           .collection<PhotoEntity>()
           .filter()
           .isAiAnalyzedEqualTo(false)
-          .limit(batchSize)
+          .limit(batchSize * 4)
           .findAll();
+
+      final photos = pendingPhotos
+          .where(
+            (photo) =>
+                photo.eventId != null &&
+                eligibleEventIds.contains(photo.eventId),
+          )
+          .take(batchSize)
+          .toList();
 
       if (photos.isEmpty) {
         break;

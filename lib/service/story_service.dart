@@ -8,6 +8,7 @@ import '../utils/story_prompt_helper.dart';
 import 'photo_service.dart';
 import 'llm_service.dart';
 import '../view/pages/config_page.dart'; // for StoryLength enum
+import 'event_service.dart';
 
 /// 故事服务 - 管理故事的生成和存储
 class StoryService {
@@ -33,6 +34,13 @@ class StoryService {
     required StoryLength length,
   }) async {
     try {
+      if (event.photoCount < EventService.minPhotosForDisplay) {
+        print(
+          "⚠️ 事件照片数(${event.photoCount})低于展示阈值(${EventService.minPhotosForDisplay})，跳过故事生成",
+        );
+        return null;
+      }
+
       if (selectedPhotos.isEmpty) {
         print("⚠️ 没有选中照片，无法生成故事");
         return null;
@@ -41,6 +49,9 @@ class StoryService {
       // 1. 按时间顺序排序照片（确保故事的连贯性）
       final sortedPhotos = List<PhotoEntity>.from(selectedPhotos)
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      final locationMode = _detectLocationMode(sortedPhotos);
+      print("📍 故事位置线索模式: $locationMode");
 
       print("📝 开始生成故事：${sortedPhotos.length} 张照片");
 
@@ -56,6 +67,7 @@ class StoryService {
         event: event,
         photoDescriptions: photoDescriptions,
         length: length,
+        locationMode: locationMode,
       );
 
       if (content == null) {
@@ -93,6 +105,7 @@ class StoryService {
     required EventEntity event,
     required List<String> photoDescriptions,
     required StoryLength length,
+    required String locationMode,
   }) async {
     final llmService = LLMService();
 
@@ -115,6 +128,7 @@ class StoryService {
         event: event,
         photoDescriptions: photoDescriptions,
         isShort: length == StoryLength.short,
+        locationMode: locationMode,
       );
 
       // 调用第三方中转站 LLM API
@@ -130,6 +144,26 @@ class StoryService {
         length,
       );
     }
+  }
+
+  String _detectLocationMode(List<PhotoEntity> photos) {
+    final hasAddress = photos.any(
+      (photo) =>
+          (photo.formattedAddress?.trim().isNotEmpty ?? false) ||
+          (photo.district?.trim().isNotEmpty ?? false),
+    );
+    if (hasAddress) {
+      return 'address';
+    }
+
+    final hasGps = photos.any(
+      (photo) => photo.latitude != null && photo.longitude != null,
+    );
+    if (hasGps) {
+      return 'gps';
+    }
+
+    return 'time-tag-only';
   }
 
   /// 🧪 模拟模式：生成假的故事内容（用于开发测试）

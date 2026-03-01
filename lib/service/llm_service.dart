@@ -45,7 +45,7 @@ class LLMService {
   // 通过 --dart-define 配置，避免硬编码凭证
   static const String _defaultApiKey = String.fromEnvironment(
     'LLM_API_KEY',
-    defaultValue: 'ms-ad2cccb3-7ad1-452c-ae58-ce8055932c11',
+    defaultValue: '',
   );
   static const String _defaultBaseUrl = String.fromEnvironment(
     'LLM_BASE_URL',
