@@ -1,7 +1,5 @@
 PODS:
   - Flutter (1.0.0)
-  - geocoding_ios (1.0.5):
-    - Flutter
   - google_mlkit_commons (0.9.0):
     - Flutter
     - MLKitVision
@@ -95,7 +93,6 @@ PODS:
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - geocoding_ios (from `.symlinks/plugins/geocoding_ios/ios`)
   - google_mlkit_commons (from `.symlinks/plugins/google_mlkit_commons/ios`)
   - google_mlkit_face_detection (from `.symlinks/plugins/google_mlkit_face_detection/ios`)
   - google_mlkit_image_labeling (from `.symlinks/plugins/google_mlkit_image_labeling/ios`)
@@ -124,8 +121,6 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  geocoding_ios:
-    :path: ".symlinks/plugins/geocoding_ios/ios"
   google_mlkit_commons:
     :path: ".symlinks/plugins/google_mlkit_commons/ios"
   google_mlkit_face_detection:
@@ -139,7 +134,6 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  geocoding_ios: 33776c9ebb98d037b5e025bb0e7537f6dd19646e
   google_mlkit_commons: 92c769cc2e0a2bfdeb3c38091a36e8a9cc8c63d4
   google_mlkit_face_detection: 76f493a9ffcb1aeb0ad4abd13ea58403e092ab84
   google_mlkit_image_labeling: e01dfa7cf050b00f8db79e37ae385c0f4ea82de6

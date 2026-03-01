@@ -29,8 +29,8 @@ class LLMService {
   factory LLMService.forTest({
     required String apiKey,
     required String baseUrl,
-    String apiPath = '/responses',
-    String modelName = 'gpt-5.1-codex',
+    String apiPath = '/chat/completions',
+    String modelName = 'deepseek-ai/DeepSeek-V3.2',
     Dio? dio,
   }) {
     return LLMService._internal(
@@ -45,19 +45,19 @@ class LLMService {
   // 通过 --dart-define 配置，避免硬编码凭证
   static const String _defaultApiKey = String.fromEnvironment(
     'LLM_API_KEY',
-    defaultValue: '',
+    defaultValue: 'ms-ad2cccb3-7ad1-452c-ae58-ce8055932c11',
   );
   static const String _defaultBaseUrl = String.fromEnvironment(
     'LLM_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://api-inference.modelscope.cn/v1',
   );
   static const String _defaultApiPath = String.fromEnvironment(
     'LLM_API_PATH',
-    defaultValue: '/responses',
+    defaultValue: '/chat/completions',
   );
   static const String _defaultModelName = String.fromEnvironment(
     'LLM_MODEL',
-    defaultValue: '',
+    defaultValue: 'deepseek-ai/DeepSeek-V3.2',
   );
 
   final String _apiKey;
@@ -258,23 +258,11 @@ class LLMService {
         ? _baseUrl.substring(0, _baseUrl.length - 1)
         : _baseUrl;
     final apiPath = _apiPath.startsWith('/') ? _apiPath : '/$_apiPath';
-
-    final requestBody = {
-      'model': _modelName,
-      // 隐私约束：仅发送文本摘要，不发送图片二进制/URL
-      'input': [
-        {
-          'role': 'user',
-          'content': [
-            {
-              'type': 'input_text',
-              'text': '你是一个中文摄影故事与标题助手。只能基于输入信息生成，不要编造未提供事实。',
-            },
-            {'type': 'input_text', 'text': prompt},
-          ],
-        },
-      ],
-    };
+    final isChatCompletions = apiPath.contains('/chat/completions');
+    final requestBody = _buildRequestBody(
+      prompt: prompt,
+      useChatCompletions: isChatCompletions,
+    );
 
     // print('🌐 [LLM REQUEST] POST $baseUrl$apiPath');
     // print('🧾 [LLM REQUEST BODY] ${jsonEncode(requestBody)}');
@@ -330,6 +318,38 @@ class LLMService {
     }
 
     return null;
+  }
+
+  Map<String, dynamic> _buildRequestBody({
+    required String prompt,
+    required bool useChatCompletions,
+  }) {
+    const systemText = '你是一个中文摄影故事与标题助手。只能基于输入信息生成，不要编造未提供事实。';
+
+    if (useChatCompletions) {
+      return {
+        'model': _modelName,
+        // chat/completions 风格
+        'messages': [
+          {'role': 'system', 'content': systemText},
+          {'role': 'user', 'content': prompt},
+        ],
+      };
+    }
+
+    return {
+      'model': _modelName,
+      // responses 风格
+      'input': [
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'input_text', 'text': systemText},
+            {'type': 'input_text', 'text': prompt},
+          ],
+        },
+      ],
+    };
   }
 
   String? _extractResponseText(Map<String, dynamic> data) {

@@ -1,5 +1,3 @@
-import 'package:geocoding/geocoding.dart';
-
 class LocationInfo {
   final String? province;
   final String? city;
@@ -9,15 +7,6 @@ class LocationInfo {
 
 class LocationHelper {
   const LocationHelper._();
-
-  static LocationInfo resolveFromPlacemarks(List<Placemark> placemarks) {
-    final place = placemarks.isNotEmpty ? placemarks.first : null;
-    return resolveFromParts(
-      administrativeArea: place?.administrativeArea,
-      locality: place?.locality,
-      subAdministrativeArea: place?.subAdministrativeArea,
-    );
-  }
 
   static LocationInfo resolveFromParts({
     required String? administrativeArea,
