@@ -8,6 +8,7 @@ class LocationInfo {
 class LocationHelper {
   const LocationHelper._();
 
+  /// Resolves province/city from platform location parts with null-safe fallback.
   static LocationInfo resolveFromParts({
     required String? administrativeArea,
     required String? locality,

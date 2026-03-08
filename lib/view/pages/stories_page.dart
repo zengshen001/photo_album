@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/entity/story_entity.dart';
-import '../../service/story_service.dart';
+import '../../service/story/story_service.dart';
 import 'story_result_page.dart';
 
 class StoriesPage extends StatefulWidget {

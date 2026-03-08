@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo_album/models/entity/event_entity.dart';
 import 'package:photo_album/models/entity/photo_entity.dart';
-import 'package:photo_album/utils/story_prompt_helper.dart';
+import 'package:photo_album/utils/story/story_prompt_helper.dart';
 
 PhotoEntity _photo({
   required int id,
@@ -63,6 +63,7 @@ void main() {
 
         final desc = StoryPromptHelper.buildPhotoDescriptions(photos).single;
 
+        expect(desc, contains('formatted_address=广东省深圳市南山区深圳湾公园'));
         expect(desc, contains('地址：广东省深圳市南山区深圳湾公园'));
         expect(desc, contains('行政区：广东省深圳市南山区'));
         expect(desc, contains('坐标：22.513900,113.944200'));

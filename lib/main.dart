@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:photo_album/service/photo_service.dart';
+import 'package:photo_album/service/photo/photo_service.dart';
 import 'view/widget_tree.dart';
 
 void main() async {

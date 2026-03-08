@@ -3,13 +3,12 @@ import 'package:isar/isar.dart';
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../../models/ai_theme.dart';
+import '../../models/story_length.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
-import '../../service/photo_service.dart';
-import '../../service/story_service.dart';
+import '../../service/photo/photo_service.dart';
+import '../../service/story/story_service.dart';
 import 'story_result_page.dart';
-
-enum StoryLength { short, medium }
 
 class ConfigPage extends StatefulWidget {
   final Event event;

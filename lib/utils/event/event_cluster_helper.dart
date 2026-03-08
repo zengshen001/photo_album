@@ -1,6 +1,7 @@
-import 'dart:math';
-
-import '../models/entity/photo_entity.dart';
+import '../../models/entity/photo_entity.dart';
+import 'event_cluster_city_rules.dart';
+import 'event_cluster_spatial_rules.dart';
+import 'event_cluster_time_rules.dart';
 
 class ClusterConfig {
   final int initialTimeThresholdHours;
@@ -143,7 +144,10 @@ class EventClusterHelper {
     final rightStart = right.first;
     final gapHours =
         (rightStart.timestamp - leftEnd.timestamp) / (1000 * 60 * 60);
-    final isSameDay = _isSameLocalDay(leftEnd.timestamp, rightStart.timestamp);
+    final isSameDay = EventClusterTimeRules.isSameLocalDay(
+      leftEnd.timestamp,
+      rightStart.timestamp,
+    );
     final mergeGapThreshold = isSameDay
         ? config.sameDayMergeGapHours
         : config.crossDayMergeGapHours;
@@ -157,7 +161,11 @@ class EventClusterHelper {
     }
 
     // 已识别为跨城的相邻簇不合并
-    if (_isCrossCity(leftEnd, rightStart, config: config)) {
+    if (EventClusterCityRules.isCrossCity(
+      leftEnd,
+      rightStart,
+      fallbackSameCityDistanceKm: config.fallbackSameCityDistanceKm,
+    )) {
       return false;
     }
 
@@ -170,12 +178,22 @@ class EventClusterHelper {
     required double timeDiffHours,
     required ClusterConfig config,
   }) {
-    if (_isCrossCity(prev, curr, config: config)) {
+    if (EventClusterCityRules.isCrossCity(
+      prev,
+      curr,
+      fallbackSameCityDistanceKm: config.fallbackSameCityDistanceKm,
+    )) {
       return true;
     }
 
-    final hasBothGps = _hasGps(prev) && _hasGps(curr);
-    final sameCity = _isSameCity(prev, curr, config: config);
+    final hasBothGps =
+        EventClusterSpatialRules.hasGps(prev) &&
+        EventClusterSpatialRules.hasGps(curr);
+    final sameCity = EventClusterCityRules.isSameCity(
+      prev,
+      curr,
+      fallbackSameCityDistanceKm: config.fallbackSameCityDistanceKm,
+    );
 
     final timeThreshold = sameCity
         ? config.sameCityTimeThresholdHours
@@ -188,7 +206,7 @@ class EventClusterHelper {
       return false;
     }
 
-    final distance = _calculateDistance(
+    final distance = EventClusterSpatialRules.calculateDistanceKm(
       prev.latitude!,
       prev.longitude!,
       curr.latitude!,
@@ -200,100 +218,12 @@ class EventClusterHelper {
     return distance > distanceThreshold;
   }
 
-  static bool _hasGps(PhotoEntity photo) {
-    return photo.latitude != null && photo.longitude != null;
-  }
-
-  static bool _isSameLocalDay(int ts1, int ts2) {
-    final d1 = DateTime.fromMillisecondsSinceEpoch(ts1);
-    final d2 = DateTime.fromMillisecondsSinceEpoch(ts2);
-    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
-  }
-
-  static bool _isCrossCity(
-    PhotoEntity a,
-    PhotoEntity b, {
-    required ClusterConfig config,
-  }) {
-    final aCityKey = _cityKey(a);
-    final bCityKey = _cityKey(b);
-    if (aCityKey != null && bCityKey != null) {
-      return aCityKey != bCityKey;
-    }
-
-    if (_hasGps(a) && _hasGps(b)) {
-      final distance = _calculateDistance(
-        a.latitude!,
-        a.longitude!,
-        b.latitude!,
-        b.longitude!,
-      );
-      return distance > config.fallbackSameCityDistanceKm;
-    }
-
-    return false;
-  }
-
-  static bool _isSameCity(
-    PhotoEntity a,
-    PhotoEntity b, {
-    required ClusterConfig config,
-  }) {
-    final aCityKey = _cityKey(a);
-    final bCityKey = _cityKey(b);
-    if (aCityKey != null && bCityKey != null) {
-      return aCityKey == bCityKey;
-    }
-
-    if (_hasGps(a) && _hasGps(b)) {
-      final distance = _calculateDistance(
-        a.latitude!,
-        a.longitude!,
-        b.latitude!,
-        b.longitude!,
-      );
-      return distance <= config.fallbackSameCityDistanceKm;
-    }
-
-    return false;
-  }
-
-  static String? _cityKey(PhotoEntity photo) {
-    if (photo.adcode != null && photo.adcode!.trim().isNotEmpty) {
-      return 'adcode:${photo.adcode!.trim()}';
-    }
-
-    final city = photo.city?.trim();
-    final province = photo.province?.trim();
-    if (city != null && city.isNotEmpty) {
-      return 'city:${province ?? ''}/$city';
-    }
-
-    return null;
-  }
-
-  static double _calculateDistance(
+  static double calculateDistanceKm(
     double lat1,
     double lon1,
     double lat2,
     double lon2,
   ) {
-    const earthRadiusKm = 6371.0;
-    final dLat = _toRadians(lat2 - lat1);
-    final dLon = _toRadians(lon2 - lon1);
-
-    final a =
-        sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) *
-            cos(_toRadians(lat2)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadiusKm * c;
-  }
-
-  static double _toRadians(double degree) {
-    return degree * pi / 180;
+    return EventClusterSpatialRules.calculateDistanceKm(lat1, lon1, lat2, lon2);
   }
 }

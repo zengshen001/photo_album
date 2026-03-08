@@ -1,14 +1,15 @@
 import 'package:isar/isar.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-import '../models/entity/story_entity.dart';
-import '../models/entity/event_entity.dart';
-import '../models/entity/photo_entity.dart';
-import '../utils/story_prompt_helper.dart';
-import 'photo_service.dart';
-import 'llm_service.dart';
-import '../view/pages/config_page.dart'; // for StoryLength enum
-import 'event_service.dart';
+import '../../models/entity/story_entity.dart';
+import '../../models/entity/event_entity.dart';
+import '../../models/entity/photo_entity.dart';
+import '../../models/story_length.dart';
+import '../../utils/story/story_prompt_helper.dart';
+import '../photo/photo_service.dart';
+import '../ai/llm_service.dart';
+import '../event/event_service.dart';
+import 'story_input_mapper.dart';
 
 /// 故事服务 - 管理故事的生成和存储
 class StoryService {
@@ -34,40 +35,25 @@ class StoryService {
     required StoryLength length,
   }) async {
     try {
-      if (event.photoCount < EventService.minPhotosForDisplay) {
-        print(
-          "⚠️ 事件照片数(${event.photoCount})低于展示阈值(${EventService.minPhotosForDisplay})，跳过故事生成",
-        );
+      if (!_canGenerateStory(event: event, selectedPhotos: selectedPhotos)) {
         return null;
       }
 
-      if (selectedPhotos.isEmpty) {
-        print("⚠️ 没有选中照片，无法生成故事");
-        return null;
-      }
+      // 1. 加载最新照片信息，保证 prompt 可读取最新地址字段（formattedAddress 等）
+      final latestPhotos = await _loadLatestPhotosForPrompt(selectedPhotos);
 
-      // 1. 按时间顺序排序照片（确保故事的连贯性）
-      final sortedPhotos = List<PhotoEntity>.from(selectedPhotos)
-        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-      final locationMode = _detectLocationMode(sortedPhotos);
-      print("📍 故事位置线索模式: $locationMode");
-
-      print("📝 开始生成故事：${sortedPhotos.length} 张照片");
-
-      // 2. 构造照片描述文本（供 LLM 理解）
-      final photoDescriptions = StoryPromptHelper.buildPhotoDescriptions(
-        sortedPhotos,
-      );
+      // 2. 统一输入映射：排序、位置模式判定、描述构建
+      final promptInput = StoryInputMapper.build(latestPhotos);
+      _logPromptInput(promptInput);
 
       // 3. 调用 LLM 生成故事内容
       final content = await _generateStoryContent(
         title: title,
         subtitle: subtitle,
         event: event,
-        photoDescriptions: photoDescriptions,
+        photoDescriptions: promptInput.photoDescriptions,
         length: length,
-        locationMode: locationMode,
+        locationMode: promptInput.locationMode,
       );
 
       if (content == null) {
@@ -75,27 +61,83 @@ class StoryService {
         return null;
       }
 
-      // 4. 创建并保存故事实体
-      final story = StoryEntity.create(
+      // 4. 持久化故事
+      final story = await _saveStory(
         title: title,
         subtitle: subtitle,
         content: content,
         eventId: event.id,
-        photoIds: sortedPhotos.map((p) => p.id).toList(),
+        photoIds: promptInput.sortedPhotos.map((p) => p.id).toList(),
       );
-
-      // 保存到数据库
-      final isar = PhotoService().isar;
-      await isar.writeTxn(() async {
-        await isar.collection<StoryEntity>().put(story);
-      });
-
       print("✅ 故事生成成功：ID=${story.id}");
       return story;
     } catch (e) {
       print("❌ 故事生成异常: $e");
       return null;
     }
+  }
+
+  bool _canGenerateStory({
+    required EventEntity event,
+    required List<PhotoEntity> selectedPhotos,
+  }) {
+    if (event.photoCount < EventService.minPhotosForDisplay) {
+      print(
+        "⚠️ 事件照片数(${event.photoCount})低于展示阈值(${EventService.minPhotosForDisplay})，跳过故事生成",
+      );
+      return false;
+    }
+    if (selectedPhotos.isEmpty) {
+      print("⚠️ 没有选中照片，无法生成故事");
+      return false;
+    }
+    return true;
+  }
+
+  void _logPromptInput(StoryPromptInput promptInput) {
+    print("📍 故事位置线索模式: ${promptInput.locationMode}");
+    print("📝 开始生成故事：${promptInput.sortedPhotos.length} 张照片");
+  }
+
+  Future<StoryEntity> _saveStory({
+    required String title,
+    required String subtitle,
+    required String content,
+    required int eventId,
+    required List<int> photoIds,
+  }) async {
+    final story = StoryEntity.create(
+      title: title,
+      subtitle: subtitle,
+      content: content,
+      eventId: eventId,
+      photoIds: photoIds,
+    );
+    final isar = PhotoService().isar;
+    await isar.writeTxn(() async {
+      await isar.collection<StoryEntity>().put(story);
+    });
+    return story;
+  }
+
+  Future<List<PhotoEntity>> _loadLatestPhotosForPrompt(
+    List<PhotoEntity> selectedPhotos,
+  ) async {
+    final isar = PhotoService().isar;
+    final selectedIds = selectedPhotos.map((photo) => photo.id).toList();
+    final latest = await isar
+        .collection<PhotoEntity>()
+        .where()
+        .anyOf(selectedIds, (q, id) => q.idEqualTo(id))
+        .findAll();
+    if (latest.isEmpty) {
+      return selectedPhotos;
+    }
+
+    final latestById = {for (final photo in latest) photo.id: photo};
+    return selectedPhotos
+        .map((photo) => latestById[photo.id] ?? photo)
+        .toList();
   }
 
   /// 🤖 调用 LLM 生成故事内容
@@ -144,26 +186,6 @@ class StoryService {
         length,
       );
     }
-  }
-
-  String _detectLocationMode(List<PhotoEntity> photos) {
-    final hasAddress = photos.any(
-      (photo) =>
-          (photo.formattedAddress?.trim().isNotEmpty ?? false) ||
-          (photo.district?.trim().isNotEmpty ?? false),
-    );
-    if (hasAddress) {
-      return 'address';
-    }
-
-    final hasGps = photos.any(
-      (photo) => photo.latitude != null && photo.longitude != null,
-    );
-    if (hasGps) {
-      return 'gps';
-    }
-
-    return 'time-tag-only';
   }
 
   /// 🧪 模拟模式：生成假的故事内容（用于开发测试）

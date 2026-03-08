@@ -2,10 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _apiKey = String.fromEnvironment(
-  'LLM_API_KEY',
-  defaultValue: 'ms-ad2cccb3-7ad1-452c-ae58-ce8055932c11',
-);
+const _apiKey = String.fromEnvironment('LLM_API_KEY', defaultValue: '');
 const _baseUrl = String.fromEnvironment(
   'LLM_BASE_URL',
   defaultValue: 'https://api-inference.modelscope.cn/v1',

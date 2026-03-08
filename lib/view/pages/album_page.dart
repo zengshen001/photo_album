@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/event.dart';
-import '../../service/ai_service.dart';
-import '../../service/event_service.dart';
-import '../../service/photo_service.dart';
+import '../../service/ai/ai_service.dart';
+import '../../service/event/event_service.dart';
+import '../../service/photo/photo_service.dart';
 import '../widgets/event_card.dart';
 
 class AlbumPage extends StatefulWidget {
@@ -32,11 +32,20 @@ class _AlbumPageState extends State<AlbumPage> {
       // 1. 扫描相册（仅入库原始可用数据）
       final scanSummary = await PhotoService().scanAndSyncPhotos();
 
-      // 2. 运行聚类算法（会自动触发地址解析）
-      await EventService().runClustering();
+      final hasPhotoSetChanged =
+          clearCacheFirst ||
+          scanSummary.insertedCount > 0 ||
+          scanSummary.removedCount > 0;
 
-      // 3. 聚类完成后再做 AI 分析，确保 eventId 已建立
-      await AIService().analyzePhotosInBackground();
+      if (hasPhotoSetChanged) {
+        // 2. 仅在照片集合变化时重跑聚类（避免“纯刷新”造成事件抖动）
+        await EventService().runClustering();
+
+        // 3. 聚类完成后再做 AI 分析，确保 eventId 已建立
+        await AIService().analyzePhotosInBackground();
+      } else {
+        print("ℹ️ 本次无照片增删，跳过聚类与AI分析，保留现有事件结果");
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

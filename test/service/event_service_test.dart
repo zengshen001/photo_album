@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:photo_album/service/event_service.dart';
+import 'package:photo_album/service/event/event_service.dart';
 
 void main() {
   group('EventService.shouldResolvePhotoLocation', () {

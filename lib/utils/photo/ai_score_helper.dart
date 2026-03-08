@@ -3,6 +3,7 @@ class AIScoreHelper {
 
   static const _joyfulTags = {'美食', '日落', '日出', '花朵', '宠物', '猫', '狗'};
 
+  /// Computes joy score from face/smile first, then falls back to joyful tags.
   static double calculateJoyScore({
     required int faceCount,
     required double maxSmileProb,

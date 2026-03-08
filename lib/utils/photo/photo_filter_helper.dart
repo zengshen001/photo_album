@@ -23,6 +23,7 @@ class PhotoFilterHelper {
     return ratio < 0.45 || ratio > 2.2;
   }
 
+  /// Heuristic filter to keep camera-origin photos and drop screenshots/files.
   static bool isLikelyCameraPhoto(String filePath) {
     final normalized = filePath.toLowerCase();
     final fileName = normalized.split('/').last;

@@ -2,10 +2,12 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-import '../models/entity/photo_entity.dart';
-import '../models/entity/event_entity.dart';
-import '../models/entity/story_entity.dart';
-import '../utils/photo_filter_helper.dart';
+import '../../models/entity/photo_entity.dart';
+import '../../models/entity/event_entity.dart';
+import '../../models/entity/story_entity.dart';
+import '../../utils/photo/photo_filter_helper.dart';
+import 'photo_asset_mapper.dart';
+import 'photo_scan_context.dart';
 
 class PhotoService {
   late Isar _isar;
@@ -36,8 +38,18 @@ class PhotoService {
     print("🗑️ 已清空 Isar 缓存数据（照片/事件/故事）");
   }
 
-  // 1️⃣ 扫描相册 (快速入库，带截图过滤)
-  Future<PhotoScanSummary> scanAndSyncPhotos() async {
+  // 1️⃣ 扫描相册 (分页入库，带截图过滤)
+  Future<PhotoScanSummary> scanAndSyncPhotos({
+    int pageSize = 200,
+    int? maxScanCount,
+  }) async {
+    if (pageSize <= 0) {
+      throw ArgumentError.value(pageSize, 'pageSize', '必须大于 0');
+    }
+    if (maxScanCount != null && maxScanCount <= 0) {
+      throw ArgumentError.value(maxScanCount, 'maxScanCount', '必须大于 0');
+    }
+
     final totalBefore = await _isar.collection<PhotoEntity>().count();
 
     // 权限检查
@@ -62,87 +74,49 @@ class PhotoService {
     // 先做反向同步：清理系统相册已删除/已不可访问的照片
     final removedCount = await _removeUnavailablePhotos();
 
-    // 当前限制单次扫描数量，避免一次性处理过多资源
-    final List<AssetEntity> assets = await albums[0].getAssetListRange(
-      start: 0,
-      end: 200,
+    print("🚀 开始扫描相册（分页模式）...");
+
+    final counters = PhotoScanCounters();
+
+    final targetAlbum = albums.first;
+    final context = PhotoScanContext(
+      pageSize: pageSize,
+      maxScanCount: maxScanCount,
     );
 
-    print("🚀 开始扫描相册...");
-
-    int skippedInvalidTime = 0;
-    int insertedNoGps = 0;
-    int skippedNonCamera = 0;
-    int skippedScreenshot = 0;
-    int insertedCount = 0;
-
-    await _isar.writeTxn(() async {
-      for (final asset in assets) {
-        final file = await asset.file;
-        final latLong = await asset.latlngAsync();
-        // 不需要打印了
-        _logAssetExtInfo(asset: asset, filePath: file?.path, latLong: latLong);
-
-        // 增量更新检查
-        final existing = await _isar
-            .collection<PhotoEntity>()
-            .filter()
-            .assetIdEqualTo(asset.id)
-            .findFirst();
-        if (existing != null) continue;
-
-        if (file == null) continue;
-
-        final timestamp = asset.createDateTime.millisecondsSinceEpoch;
-        if (!PhotoFilterHelper.hasValidTimestamp(timestamp)) {
-          skippedInvalidTime++;
-          continue;
-        }
-
-        // 📐 获取图片尺寸并过滤截图
-        final width = asset.width;
-        final height = asset.height;
-        if (width <= 0 || height <= 0) {
-          skippedNonCamera++;
-          continue;
-        }
-
-        if (PhotoFilterHelper.isLikelyScreenshotByRatio(width, height)) {
-          skippedScreenshot++;
-          print("⏭️  跳过截图: ${file.path.split('/').last} (宽=$width 高=$height)");
-          continue; // 跳过截图
-        }
-
-        // if (!PhotoFilterHelper.isLikelyCameraPhoto(file.path)) {
-        //   skippedNonCamera++;
-        //   print("⏭️  跳过非相机命名: ${file.path.split('/').last}");
-        //   continue;
-        // }
-
-        // 无 GPS 图片也入库，后续聚类会按“时间信号”参与
-        final hasGps = PhotoFilterHelper.hasValidGps(
-          latLong?.latitude,
-          latLong?.longitude,
-        );
-        if (!hasGps) insertedNoGps++;
-
-        final newPhoto = PhotoEntity()
-          ..assetId = asset.id
-          ..timestamp = timestamp
-          ..path = file.path
-          ..width = width
-          ..height = height
-          ..latitude = hasGps ? latLong!.latitude : null
-          ..longitude = hasGps ? latLong!.longitude : null
-          ..isLocationProcessed = false;
-
-        await _isar.collection<PhotoEntity>().put(newPhoto);
-        insertedCount++;
+    while (true) {
+      final currentPageSize = context.currentPageSize;
+      if (currentPageSize == null || currentPageSize <= 0) {
+        break;
       }
-    });
+
+      final batch = await targetAlbum.getAssetListRange(
+        start: context.offset,
+        end: context.offset + currentPageSize,
+      );
+      if (batch.isEmpty) {
+        break;
+      }
+
+      counters.onPageScanned(batch.length);
+      print(
+        "📦 扫描第${counters.scannedPageCount}页: 起始=${context.offset} "
+        "本页=${batch.length} 累计=${counters.scannedAssetCount}",
+      );
+
+      await _scanPage(batch: batch, counters: counters);
+
+      context.onBatchProcessed(batch.length);
+      if (batch.length < currentPageSize) {
+        break;
+      }
+    }
 
     print(
-      "✅ 基础数据同步完成: 删除=$removedCount 入库=$insertedCount 其中无GPS入库=$insertedNoGps 跳过[无时间=$skippedInvalidTime 截图=$skippedScreenshot]",
+      "✅ 基础数据同步完成: 扫描页数=${counters.scannedPageCount} "
+      "扫描总量=${counters.scannedAssetCount} 删除=$removedCount "
+      "入库=${counters.insertedCount} 其中无GPS入库=${counters.insertedNoGps} "
+      "跳过[无时间=${counters.skippedInvalidTime} 截图=${counters.skippedScreenshot}]",
     );
 
     final totalAfter = await _isar.collection<PhotoEntity>().count();
@@ -158,35 +132,78 @@ class PhotoService {
       totalBefore: totalBefore,
       totalAfter: totalAfter,
       removedCount: removedCount,
-      insertedCount: insertedCount,
-      skippedInvalidTime: skippedInvalidTime,
-      insertedNoGps: insertedNoGps,
-      skippedNonCamera: skippedNonCamera,
-      skippedScreenshot: skippedScreenshot,
+      insertedCount: counters.insertedCount,
+      skippedInvalidTime: counters.skippedInvalidTime,
+      insertedNoGps: counters.insertedNoGps,
+      skippedNonCamera: counters.skippedNonCamera,
+      skippedScreenshot: counters.skippedScreenshot,
     );
   }
 
-  void _logAssetExtInfo({
+  Future<void> _scanPage({
+    required List<AssetEntity> batch,
+    required PhotoScanCounters counters,
+  }) async {
+    for (final asset in batch) {
+      await _processAsset(asset: asset, counters: counters);
+    }
+  }
+
+  Future<void> _processAsset({
     required AssetEntity asset,
-    required String? filePath,
-    required LatLng? latLong,
-  }) {
+    required PhotoScanCounters counters,
+  }) async {
+    final file = await asset.file;
+    final latLong = await asset.latlngAsync();
+    // 过滤顺序：已入库 -> 时间 -> 尺寸 -> 截图 -> GPS，保证统计口径稳定。
+    final existing = await _isar
+        .collection<PhotoEntity>()
+        .filter()
+        .assetIdEqualTo(asset.id)
+        .findFirst();
+    if (existing != null || file == null) {
+      return;
+    }
+
     final timestamp = asset.createDateTime.millisecondsSinceEpoch;
-    final modified = asset.modifiedDateTime;
-    final hasValidTime = PhotoFilterHelper.hasValidTimestamp(timestamp);
-    final hasValidGps = PhotoFilterHelper.hasValidGps(
+    if (!PhotoFilterHelper.hasValidTimestamp(timestamp)) {
+      counters.skippedInvalidTime++;
+      return;
+    }
+
+    final width = asset.width;
+    final height = asset.height;
+    if (width <= 0 || height <= 0) {
+      counters.skippedNonCamera++;
+      return;
+    }
+
+    if (PhotoFilterHelper.isLikelyScreenshotByRatio(width, height)) {
+      counters.skippedScreenshot++;
+      print("⏭️  跳过截图: ${file.path.split('/').last} (宽=$width 高=$height)");
+      return;
+    }
+
+    final hasGps = PhotoFilterHelper.hasValidGps(
       latLong?.latitude,
       latLong?.longitude,
     );
+    if (!hasGps) counters.insertedNoGps++;
 
-    print(
-      '🧾 [EXTINFO] id=${asset.id} file=${filePath ?? 'null'} '
-      'time=${asset.createDateTime.toIso8601String()} modified=${modified.toIso8601String()} '
-      'size=${asset.width}x${asset.height} '
-      'lat=${latLong?.latitude.toStringAsFixed(6) ?? 'null'} '
-      'lon=${latLong?.longitude.toStringAsFixed(6) ?? 'null'} '
-      'validTime=$hasValidTime validGps=$hasValidGps',
+    final newPhoto = PhotoAssetMapper.toEntity(
+      assetId: asset.id,
+      timestamp: timestamp,
+      filePath: file.path,
+      width: width,
+      height: height,
+      latitude: hasGps ? latLong!.latitude : null,
+      longitude: hasGps ? latLong!.longitude : null,
     );
+
+    await _isar.writeTxn(() async {
+      await _isar.collection<PhotoEntity>().put(newPhoto);
+    });
+    counters.insertedCount++;
   }
 
   Future<int> _removeUnavailablePhotos() async {

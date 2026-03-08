@@ -4,8 +4,8 @@ import '../../models/vo/photo.dart';
 import '../../models/story.dart';
 import '../../models/entity/story_entity.dart';
 import '../../models/entity/photo_entity.dart';
-import '../../service/photo_service.dart';
-import '../../service/story_service.dart';
+import '../../service/photo/photo_service.dart';
+import '../../service/story/story_service.dart';
 import '../widgets/path_image.dart';
 
 class StoryResultPage extends StatefulWidget {
