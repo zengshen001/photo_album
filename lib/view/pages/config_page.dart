@@ -10,6 +10,7 @@ import '../../models/entity/photo_entity.dart';
 import '../../service/photo/photo_service.dart';
 import '../../service/story/story_service.dart';
 import '../../service/story/story_theme_preference_service.dart';
+import '../widgets/primary_button.dart';
 import 'story_result_page.dart';
 
 class ConfigPage extends StatefulWidget {
@@ -218,37 +219,51 @@ class _ConfigPageState extends State<ConfigPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('配置故事')),
+      appBar: AppBar(title: const Text('生成故事')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Event info card
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.event.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${widget.event.dateRangeText} · ${widget.event.location}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _ConfigInfoPill(
+                        icon: Icons.photo_library_outlined,
+                        label: '${widget.selectedPhotos.length} 张照片',
+                      ),
+                      _ConfigInfoPill(
+                        icon: Icons.calendar_today_outlined,
+                        label: widget.event.dateRangeText,
+                      ),
+                      _ConfigInfoPill(
+                        icon: Icons.location_on_outlined,
+                        label: widget.event.location,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 14),
                   Text(
-                    '${widget.selectedPhotos.length} 张照片',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    '已完成照片选择，接下来选择 AI 主题或输入自定义主题后生成故事。',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[700],
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -262,173 +277,238 @@ class _ConfigPageState extends State<ConfigPage> {
               child: LinearProgressIndicator(),
             ),
 
-          // Recommended themes
-          Text(
-            '推荐主题',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.recommendedThemes.map((theme) {
-              final isSelected = theme.id == _selectedThemeId;
-              return ChoiceChip(
-                showCheckmark: false,
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(theme.emoji),
-                    const SizedBox(width: 4),
-                    Text(theme.title),
-                  ],
-                ),
-                selected: isSelected,
-                onSelected: (_) => _selectRecommendedTheme(theme),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-
-          // Core theme input
-          Text(
-            '自定义主题',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _themeController,
-            onChanged: (_) => _switchToCustomTheme(),
-            decoration: InputDecoration(
-              hintText: '输入 2 到 30 个字的故事主题',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              prefixIcon: const Icon(Icons.auto_stories_outlined),
+          _ConfigSection(
+            title: '推荐主题',
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: widget.recommendedThemes.map((theme) {
+                final isSelected = theme.id == _selectedThemeId;
+                return ChoiceChip(
+                  showCheckmark: false,
+                  backgroundColor: Colors.white,
+                  selectedColor: const Color(0xFFDDEBFF),
+                  side: BorderSide.none,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(theme.emoji),
+                      const SizedBox(width: 6),
+                      Text(theme.title),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: (_) => _selectRecommendedTheme(theme),
+                );
+              }).toList(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          // Subtitle chips
-          Text(
-            '副标题 / 切入点',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children:
-                {
-                  ...widget.recommendedThemes
-                      .map((theme) => theme.subtitle)
-                      .where((subtitle) => subtitle.trim().isNotEmpty),
-                  ..._fallbackSubtitles,
-                }.map((subtitle) {
-                  final isSelected = subtitle == _selectedSubtitle;
-                  return ChoiceChip(
-                    label: Text(subtitle),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedSubtitle = selected ? subtitle : null;
-                      });
-                    },
-                  );
-                }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          Text(
-            '写作语气',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: StoryThemeTone.values.map((subtitle) {
-              final isSelected = subtitle == _selectedTone;
-              return ChoiceChip(
-                label: Text(subtitle.label),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedTone = subtitle;
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          // Story length selection
-          Text(
-            '篇幅选择',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<StoryLength>(
-            segments: const [
-              ButtonSegment(
-                value: StoryLength.short,
-                label: Text('短篇'),
-                icon: Icon(Icons.short_text),
+          _ConfigSection(
+            title: '自定义主题',
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F2F7),
+                borderRadius: BorderRadius.circular(16),
               ),
-              ButtonSegment(
-                value: StoryLength.medium,
-                label: Text('中篇'),
-                icon: Icon(Icons.notes),
+              child: TextField(
+                controller: _themeController,
+                onChanged: (_) => _switchToCustomTheme(),
+                decoration: const InputDecoration(
+                  hintText: '输入 2 到 30 个字的故事主题',
+                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.auto_stories_outlined),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
+                ),
               ),
-            ],
-            selected: {_selectedLength},
-            onSelectionChanged: (Set<StoryLength> newSelection) {
-              setState(() {
-                _selectedLength = newSelection.first;
-              });
-            },
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _selectedLength == StoryLength.short ? '约 150 字' : '约 300 字',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+          const SizedBox(height: 18),
+
+          _ConfigSection(
+            title: '副标题 / 切入点',
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children:
+                  {
+                    ...widget.recommendedThemes
+                        .map((theme) => theme.subtitle)
+                        .where((subtitle) => subtitle.trim().isNotEmpty),
+                    ..._fallbackSubtitles,
+                  }.map((subtitle) {
+                    final isSelected = subtitle == _selectedSubtitle;
+                    return ChoiceChip(
+                      label: Text(subtitle),
+                      side: BorderSide.none,
+                      backgroundColor: Colors.white,
+                      selectedColor: const Color(0xFFDDEBFF),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedSubtitle = selected ? subtitle : null;
+                        });
+                      },
+                    );
+                  }).toList(),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          _ConfigSection(
+            title: '写作语气',
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: StoryThemeTone.values.map((subtitle) {
+                final isSelected = subtitle == _selectedTone;
+                return ChoiceChip(
+                  label: Text(subtitle.label),
+                  side: BorderSide.none,
+                  backgroundColor: Colors.white,
+                  selectedColor: const Color(0xFFDDEBFF),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedTone = subtitle;
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          _ConfigSection(
+            title: '篇幅选择',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SegmentedButton<StoryLength>(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return theme.colorScheme.primary;
+                      }
+                      return Colors.white;
+                    }),
+                    foregroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return Colors.white;
+                      }
+                      return Colors.black87;
+                    }),
+                    side: const WidgetStatePropertyAll(BorderSide.none),
+                    shape: WidgetStatePropertyAll(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: StoryLength.short,
+                      label: Text('短篇'),
+                      icon: Icon(Icons.short_text),
+                    ),
+                    ButtonSegment(
+                      value: StoryLength.medium,
+                      label: Text('中篇'),
+                      icon: Icon(Icons.notes),
+                    ),
+                  ],
+                  selected: {_selectedLength},
+                  onSelectionChanged: (Set<StoryLength> newSelection) {
+                    setState(() {
+                      _selectedLength = newSelection.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _selectedLength == StoryLength.short ? '约 150 字' : '约 300 字',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
 
-          // Generate button
-          FilledButton(
+          PrimaryButton(
+            text: _isGenerating ? '生成中' : '开始生成',
+            icon: _isGenerating ? null : Icons.auto_stories_outlined,
             onPressed: _isGenerating || _isLoadingPreference
                 ? null
                 : _generateStory,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: _isGenerating
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('开始生成'),
           ),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfigSection extends StatelessWidget {
+  const _ConfigSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfigInfoPill extends StatelessWidget {
+  const _ConfigInfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F2F7),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[700]),
+          const SizedBox(width: 6),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../widgets/path_image.dart';
+import '../widgets/primary_button.dart';
 import 'config_page.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -60,57 +61,70 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App bar
-          SliverAppBar(title: Text(widget.event.title), pinned: true),
-          // Event info section
+          const SliverAppBar(title: Text('选择照片'), pinned: true),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date range
-                  Row(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.calendar_today, size: 16),
-                      const SizedBox(width: 8),
                       Text(
-                        widget.event.dateRangeText,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        widget.event.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.location_on, size: 16),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          _InfoPill(
+                            icon: Icons.calendar_today_outlined,
+                            label: widget.event.dateRangeText,
+                          ),
+                          _InfoPill(
+                            icon: Icons.location_on_outlined,
+                            label: widget.event.location,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        widget.event.location,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        '已选择 ${_selectedPhotoIds.length} / ${widget.event.photos.length} 张照片',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '先专注筛选照片，下一步再选择 AI 主题并生成故事。',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[700],
+                          height: 1.5,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  // Photo count info
-                  Text(
-                    '照片 (${_selectedPhotoIds.length}/${widget.event.photos.length})',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
             ),
           ),
-          // Photo grid
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
               ),
               delegate: SliverChildBuilderDelegate((context, index) {
                 final photo = widget.event.photos[index];
@@ -121,18 +135,35 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      PathImage(path: photo.path, fit: BoxFit.cover),
-                      if (!isSelected)
-                        Container(color: Colors.black.withValues(alpha: 0.5)),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: PathImage(path: photo.path, fit: BoxFit.cover),
+                      ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                          color: isSelected
+                              ? Colors.transparent
+                              : Colors.black.withValues(alpha: 0.18),
+                        ),
+                      ),
                       if (isSelected)
                         Positioned(
-                          top: 4,
-                          right: 4,
+                          top: 10,
+                          right: 10,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
+                              color: theme.colorScheme.primary,
                               shape: BoxShape.circle,
+                              boxShadow: const [],
                             ),
                             child: const Icon(
                               Icons.check,
@@ -147,14 +178,50 @@ class _EventDetailPageState extends State<EventDetailPage> {
               }, childCount: widget.event.photos.length),
             ),
           ),
-          // Bottom spacing for FAB
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToConfigPage,
-        icon: const Icon(Icons.edit),
-        label: const Text('生成故事'),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: PrimaryButton(
+            text: '下一步：生成故事',
+            icon: Icons.auto_stories_outlined,
+            onPressed: () async => _navigateToConfigPage(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F2F7),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[700]),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
+          ),
+        ],
       ),
     );
   }

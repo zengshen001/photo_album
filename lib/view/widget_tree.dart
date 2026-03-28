@@ -23,9 +23,23 @@ class _WidgetTreeState extends State<WidgetTree> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: NavigationBar(
+        height: 72,
+        backgroundColor: Colors.white.withValues(alpha: 0.96),
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: const Color(0xFFDDEBFF),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return theme.textTheme.labelMedium?.copyWith(
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? theme.colorScheme.primary : Colors.grey[700],
+          );
+        }),
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {

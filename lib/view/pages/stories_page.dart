@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/entity/story_entity.dart';
 import '../../service/story/story_service.dart';
 import 'story_result_page.dart';
@@ -54,10 +55,11 @@ class _StoriesPageState extends State<StoriesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('故事'),
-        elevation: 0,
         actions: [
           IconButton(
             onPressed: _reload,
@@ -70,55 +72,156 @@ class _StoriesPageState extends State<StoriesPage> {
         future: _storiesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
           }
 
           if (snapshot.hasError) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
-                  const SizedBox(height: 12),
-                  Text('加载故事失败: ${snapshot.error}'),
-                  const SizedBox(height: 12),
-                  ElevatedButton(onPressed: _reload, child: const Text('重试')),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 44,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          '加载故事失败',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '$snapshot.error',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _reload,
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             );
           }
 
           final stories = snapshot.data ?? [];
           if (stories.isEmpty) {
-            return const Center(child: Text('暂无故事，先去相册生成一篇吧'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.menu_book_outlined,
+                          size: 46,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          '还没有故事',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '先去相册里选一组照片，生成第一篇故事吧。',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: stories.length,
-            itemBuilder: (context, index) {
-              final story = stories[index];
-              final date = DateTime.fromMillisecondsSinceEpoch(story.createdAt);
-              final dateText =
-                  '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: stories.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      '最近生成的故事',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }
+                final story = stories[index - 1];
+                final date = DateTime.fromMillisecondsSinceEpoch(
+                  story.createdAt,
+                );
+                final dateText =
+                    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Card(
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      title: Text(
+                        story.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          '${story.subtitle}\n$dateText · ${story.photoCount} 张照片',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      isThreeLine: true,
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.grey[500],
+                      ),
+                      onTap: () => _openStory(story),
+                    ),
                   ),
-                  title: Text(story.title),
-                  subtitle: Text(
-                    '${story.subtitle}\n$dateText · ${story.photoCount} 张照片',
-                  ),
-                  isThreeLine: true,
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _openStory(story),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),

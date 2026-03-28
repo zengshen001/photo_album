@@ -28,6 +28,8 @@ class StoryEditableList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (blocks.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
@@ -37,7 +39,7 @@ class StoryEditableList extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Text(
                 '当前草稿还没有内容块，请先插入文字或图片。',
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: theme.textTheme.bodyLarge,
               ),
             ),
           ),
@@ -57,13 +59,18 @@ class StoryEditableList extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text('块 ${index + 1}'),
+                      Text(
+                        '块 ${index + 1}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const Spacer(),
                       ReorderableDragStartListener(
                         index: index,
@@ -87,15 +94,14 @@ class StoryEditableList extends StatelessWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                          color: const Color(0xFFF2F2F7),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           block.text,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(height: 1.6),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            height: 1.6,
+                          ),
                         ),
                       ),
                     ),
@@ -103,7 +109,7 @@ class StoryEditableList extends StatelessWidget {
                   ],
                   if (block.hasPhoto && photo != null) ...[
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       child: PathImage(
                         path: photo.path,
                         assetId: photo.assetId,
@@ -118,25 +124,36 @@ class StoryEditableList extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       if (block.hasText)
-                        OutlinedButton.icon(
+                        ActionChip(
+                          side: BorderSide.none,
+                          backgroundColor: const Color(0xFFF2F2F7),
                           onPressed: () => onEditText(index),
-                          icon: const Icon(Icons.edit_note),
+                          avatar: const Icon(Icons.edit_note, size: 18),
                           label: const Text('编辑文字'),
                         ),
                       if (block.hasPhoto)
-                        OutlinedButton.icon(
+                        ActionChip(
+                          side: BorderSide.none,
+                          backgroundColor: const Color(0xFFF2F2F7),
                           onPressed: () => onReplaceImage(index),
-                          icon: const Icon(Icons.image_search),
+                          avatar: const Icon(Icons.image_search, size: 18),
                           label: const Text('替换图片'),
                         ),
-                      OutlinedButton.icon(
+                      ActionChip(
+                        side: BorderSide.none,
+                        backgroundColor: const Color(0xFFF2F2F7),
                         onPressed: () => onInsertTextAfter(index),
-                        icon: const Icon(Icons.subject),
+                        avatar: const Icon(Icons.subject, size: 18),
                         label: const Text('插入文字'),
                       ),
-                      OutlinedButton.icon(
+                      ActionChip(
+                        side: BorderSide.none,
+                        backgroundColor: const Color(0xFFF2F2F7),
                         onPressed: () => onInsertImageAfter(index),
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        avatar: const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 18,
+                        ),
                         label: const Text('插入图片'),
                       ),
                     ],

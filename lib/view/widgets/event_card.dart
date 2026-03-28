@@ -11,8 +11,10 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -28,55 +30,42 @@ class EventCard extends StatelessWidget {
           children: [
             // Cover images
             _buildCoverImages(),
-            // Event info
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     event.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey[600],
+                      _EventMetaPill(
+                        icon: Icons.calendar_today_outlined,
+                        label: '${event.startDate.month}月 · ${event.location}',
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${event.startDate.month}月 · ${event.location}',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(
-                        Icons.photo_library,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${event.photos.length} 张照片',
-                        style: TextStyle(color: Colors.grey[600]),
+                      _EventMetaPill(
+                        icon: Icons.photo_library_outlined,
+                        label: '${event.photos.length} 张照片',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   if (event.isFestivalEvent && event.festivalName != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.orange.shade200),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
                         event.festivalName!,
@@ -87,14 +76,27 @@ class EventCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                   ],
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: event.tags.map((tag) {
-                      return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 12)),
-                        visualDensity: VisualDensity.compact,
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F2F7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[800],
+                          ),
+                        ),
                       );
                     }).toList(),
                   ),
@@ -112,24 +114,23 @@ class EventCard extends StatelessWidget {
 
     if (coverPhotos.isEmpty) {
       return Container(
-        height: 200,
-        color: Colors.grey[300],
-        child: const Center(child: Icon(Icons.photo)),
+        height: 220,
+        color: Colors.grey[200],
+        child: const Center(child: Icon(Icons.photo_outlined)),
       );
     }
 
     if (coverPhotos.length == 1) {
       return PathImage(
         path: coverPhotos[0].path,
-        height: 200,
+        height: 220,
         width: double.infinity,
         fit: BoxFit.cover,
       );
     }
 
-    // Multiple photos - show in grid
     return SizedBox(
-      height: 200,
+      height: 220,
       child: Row(
         children: coverPhotos.asMap().entries.map((entry) {
           return Expanded(
@@ -139,12 +140,43 @@ class EventCard extends StatelessWidget {
               ),
               child: PathImage(
                 path: entry.value.path,
-                height: 200,
+                height: 220,
                 fit: BoxFit.cover,
               ),
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+class _EventMetaPill extends StatelessWidget {
+  const _EventMetaPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F2F7),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.grey[700]),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey[800]),
+          ),
+        ],
       ),
     );
   }

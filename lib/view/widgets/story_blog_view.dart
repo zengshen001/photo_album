@@ -21,12 +21,17 @@ class StoryBlogView extends StatelessWidget {
     if (blocks.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Text(
-            emptyHint,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                emptyHint,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+              ),
+            ),
           ),
         ),
       );
@@ -47,7 +52,15 @@ class StoryBlogView extends StatelessWidget {
           children.add(
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(block.text.trim(), style: style),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(block.text.trim(), style: style),
+              ),
             ),
           );
           leadTextConsumed = true;
@@ -58,7 +71,7 @@ class StoryBlogView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
                 child: PathImage(
                   path: photo.path,
                   assetId: photo.assetId,

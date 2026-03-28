@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/event.dart';
@@ -5,6 +7,7 @@ import '../../service/ai/ai_service.dart';
 import '../../service/event/event_service.dart';
 import '../../service/photo/photo_service.dart';
 import '../widgets/event_card.dart';
+import '../widgets/primary_button.dart';
 
 class AlbumPage extends StatefulWidget {
   const AlbumPage({super.key});
@@ -44,7 +47,7 @@ class _AlbumPageState extends State<AlbumPage> {
         // 3. 聚类完成后再做 AI 分析，确保 eventId 已建立
         await AIService().analyzePhotosInBackground();
       } else {
-        print("ℹ️ 本次无照片增删，跳过聚类与AI分析，保留现有事件结果");
+        developer.log('本次无照片增删，跳过聚类与 AI 分析，保留现有事件结果');
       }
 
       if (mounted) {
@@ -111,10 +114,11 @@ class _AlbumPageState extends State<AlbumPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('相册'),
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.cleaning_services),
@@ -138,62 +142,106 @@ class _AlbumPageState extends State<AlbumPage> {
       body: StreamBuilder<List<EventEntity>>(
         stream: _eventsStream,
         builder: (context, snapshot) {
-          // 加载中
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
           }
 
-          // 错误处理
           if (snapshot.hasError) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('加载失败: ${snapshot.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _refreshData,
-                    child: const Text('重试'),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 48,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          '加载相册失败',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${snapshot.error}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: 180,
+                          child: PrimaryButton(
+                            text: '重新加载',
+                            icon: Icons.refresh,
+                            onPressed: _refreshData,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             );
           }
 
           final eventEntities = snapshot.data ?? [];
 
-          // 空状态
           if (eventEntities.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.photo_library_outlined,
-                    size: 64,
-                    color: Colors.grey,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.photo_library_outlined,
+                          size: 48,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '还没有相册事件',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '点击右上角刷新，扫描本地照片并自动聚类成故事事件。',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        PrimaryButton(
+                          text: '扫描相册',
+                          icon: Icons.add_photo_alternate_outlined,
+                          onPressed: _refreshData,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text('暂无事件', style: TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '点击右上角刷新按钮扫描相册',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _refreshData,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('扫描相册'),
-                  ),
-                ],
+                ),
               ),
             );
           }
 
-          // 将 EventEntity 转为 Event 并按年份/季节分组
           return FutureBuilder<Map<String, List<Event>>>(
             future: _groupEvents(eventEntities),
             builder: (context, groupSnapshot) {
@@ -203,28 +251,44 @@ class _AlbumPageState extends State<AlbumPage> {
 
               final groupedEvents = groupSnapshot.data!;
 
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: groupedEvents.entries.map((entry) {
-                  final seasonTitle = entry.key;
-                  final events = entry.value;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Text(
-                          seasonTitle,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+              return RefreshIndicator(
+                onRefresh: _refreshData,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        '你的照片故事',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      ...events.map((event) => EventCard(event: event)),
-                      const SizedBox(height: 0),
-                    ],
-                  );
-                }).toList(),
+                    ),
+                    ...groupedEvents.entries.map((entry) {
+                      final seasonTitle = entry.key;
+                      final events = entry.value;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              seasonTitle,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ),
+                          ...events.map((event) => EventCard(event: event)),
+                          const SizedBox(height: 4),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
               );
             },
           );
@@ -233,7 +297,6 @@ class _AlbumPageState extends State<AlbumPage> {
     );
   }
 
-  // 将 EventEntity 列表转换为分组的 Event 列表
   Future<Map<String, List<Event>>> _groupEvents(
     List<EventEntity> eventEntities,
   ) async {
@@ -241,10 +304,8 @@ class _AlbumPageState extends State<AlbumPage> {
     final isar = PhotoService().isar;
 
     for (final entity in eventEntities) {
-      // 转换为 UI 模型
       final event = await entity.toUIModel(isar);
 
-      // 分组键：年份 · 季节
       final key = '${event.year} · ${event.season}';
 
       if (!grouped.containsKey(key)) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/entity/photo_entity.dart';
 import '../../models/entity/story_entity.dart';
@@ -239,11 +240,33 @@ class _StoryResultPageState extends State<StoryResultPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  maxLines: 10,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F7),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    maxLines: 10,
+                    style: const TextStyle(height: 1.5),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      await HapticFeedback.lightImpact();
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.pop(context, _TextEditorAction.save);
+                    },
+                    child: const Text('保存'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -251,30 +274,36 @@ class _StoryResultPageState extends State<StoryResultPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton(
-                      onPressed: () =>
-                          Navigator.pop(context, _TextEditorAction.delete),
-                      child: const Text('删除'),
-                    ),
-                    OutlinedButton(
+                    ActionChip(
+                      side: BorderSide.none,
+                      backgroundColor: Colors.grey.shade200,
+                      label: const Text('并入上段'),
                       onPressed: () =>
                           Navigator.pop(context, _TextEditorAction.mergePrev),
-                      child: const Text('并入上段'),
                     ),
-                    OutlinedButton(
+                    ActionChip(
+                      side: BorderSide.none,
+                      backgroundColor: Colors.grey.shade200,
+                      label: const Text('并入下段'),
                       onPressed: () =>
                           Navigator.pop(context, _TextEditorAction.mergeNext),
-                      child: const Text('并入下段'),
                     ),
-                    OutlinedButton(
+                    ActionChip(
+                      side: BorderSide.none,
+                      backgroundColor: Colors.grey.shade200,
+                      label: const Text('按空行拆分'),
                       onPressed: () =>
                           Navigator.pop(context, _TextEditorAction.split),
-                      child: const Text('按空行拆分'),
                     ),
-                    FilledButton(
+                    ActionChip(
+                      side: BorderSide.none,
+                      backgroundColor: Colors.red.shade50,
+                      label: Text(
+                        '删除',
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
                       onPressed: () =>
-                          Navigator.pop(context, _TextEditorAction.save),
-                      child: const Text('保存'),
+                          Navigator.pop(context, _TextEditorAction.delete),
                     ),
                   ],
                 ),
@@ -730,7 +759,11 @@ class _StoryResultPageState extends State<StoryResultPage> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      OutlinedButton.icon(
+                      ActionChip(
+                        side: BorderSide.none,
+                        backgroundColor: Colors.grey.shade200,
+                        avatar: const Icon(Icons.subject, size: 18),
+                        label: const Text('新增文字'),
                         onPressed: () {
                           _applyDraftMutation([
                             const StoryEditBlock(
@@ -740,10 +773,15 @@ class _StoryResultPageState extends State<StoryResultPage> {
                             ),
                           ]);
                         },
-                        icon: const Icon(Icons.subject),
-                        label: const Text('新增文字'),
                       ),
-                      OutlinedButton.icon(
+                      ActionChip(
+                        side: BorderSide.none,
+                        backgroundColor: Colors.grey.shade200,
+                        avatar: const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 18,
+                        ),
+                        label: const Text('新增图片'),
                         onPressed: () async {
                           final selected = await _pickPhoto();
                           if (selected == null) {
@@ -757,8 +795,6 @@ class _StoryResultPageState extends State<StoryResultPage> {
                             ),
                           ]);
                         },
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: const Text('新增图片'),
                       ),
                     ],
                   ),
