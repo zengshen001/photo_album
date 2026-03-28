@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+
 import '../../models/entity/event_entity.dart';
 import '../../models/event.dart';
 import '../../service/ai/ai_service.dart';
@@ -117,68 +118,54 @@ class _AlbumPageState extends State<AlbumPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('相册'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cleaning_services),
-            onPressed: _isRefreshing ? null : _resetCacheAndRescan,
-            tooltip: '清空缓存并重扫',
-          ),
-          // 刷新按钮
-          IconButton(
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            onPressed: _isRefreshing ? null : _refreshData,
-            tooltip: '扫描相册并聚类',
-          ),
-        ],
-      ),
       body: StreamBuilder<List<EventEntity>>(
         stream: _eventsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
+            return const CustomScrollView(
+              slivers: [
+                SliverAppBar.large(title: Text('相册'), pinned: true),
+                SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ],
             );
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Card(
+            return CustomScrollView(
+              slivers: [
+                _buildLargeAppBar(),
+                SliverFillRemaining(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.cloud_off_outlined,
                           size: 48,
                           color: Colors.grey[500],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         Text(
                           '加载相册失败',
-                          style: theme.textTheme.titleMedium?.copyWith(
+                          style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '${snapshot.error}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          style: theme.textTheme.bodyLarge?.copyWith(
                             color: Colors.grey[700],
+                            height: 1.5,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         SizedBox(
                           width: 180,
                           child: PrimaryButton(
@@ -191,38 +178,38 @@ class _AlbumPageState extends State<AlbumPage> {
                     ),
                   ),
                 ),
-              ),
+              ],
             );
           }
 
           final eventEntities = snapshot.data ?? [];
 
           if (eventEntities.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Card(
+            return CustomScrollView(
+              slivers: [
+                _buildLargeAppBar(),
+                SliverFillRemaining(
                   child: Padding(
-                    padding: const EdgeInsets.all(28),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.photo_library_outlined,
-                          size: 48,
+                          size: 52,
                           color: Colors.grey[500],
                         ),
                         const SizedBox(height: 16),
                         Text(
                           '还没有相册事件',
-                          style: theme.textTheme.titleMedium?.copyWith(
+                          style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '点击右上角刷新，扫描本地照片并自动聚类成故事事件。',
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          '点击右上角扫描，从你的照片里自动聚类出值得讲述的瞬间。',
+                          style: theme.textTheme.bodyLarge?.copyWith(
                             color: Colors.grey[700],
                             height: 1.5,
                           ),
@@ -238,7 +225,7 @@ class _AlbumPageState extends State<AlbumPage> {
                     ),
                   ),
                 ),
-              ),
+              ],
             );
           }
 
@@ -253,40 +240,42 @@ class _AlbumPageState extends State<AlbumPage> {
 
               return RefreshIndicator(
                 onRefresh: _refreshData,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        '你的照片故事',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                child: CustomScrollView(
+                  slivers: [
+                    _buildLargeAppBar(),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                        child: Text(
+                          '你的照片故事',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                     ),
                     ...groupedEvents.entries.map((entry) {
-                      final seasonTitle = entry.key;
-                      final events = entry.value;
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              seasonTitle,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.grey[800],
+                      return SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                entry.key,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          ...events.map((event) => EventCard(event: event)),
-                          const SizedBox(height: 4),
-                        ],
+                            ...entry.value.map(
+                              (event) => EventCard(event: event),
+                            ),
+                          ]),
+                        ),
                       );
                     }),
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 ),
               );
@@ -294,6 +283,31 @@ class _AlbumPageState extends State<AlbumPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLargeAppBar() {
+    return SliverAppBar.large(
+      pinned: true,
+      title: const Text('相册'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.cleaning_services),
+          onPressed: _isRefreshing ? null : _resetCacheAndRescan,
+          tooltip: '清空缓存并重扫',
+        ),
+        IconButton(
+          icon: _isRefreshing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh),
+          onPressed: _isRefreshing ? null : _refreshData,
+          tooltip: '扫描相册并聚类',
+        ),
+      ],
     );
   }
 

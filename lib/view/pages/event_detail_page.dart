@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
-import '../../models/vo/photo.dart';
-import '../widgets/path_image.dart';
+import '../widgets/movie_poster_stack.dart';
 import '../widgets/primary_button.dart';
-import 'config_page.dart';
+import 'photo_selection_page.dart';
 
 class EventDetailPage extends StatefulWidget {
   final Event event;
@@ -16,190 +15,112 @@ class EventDetailPage extends StatefulWidget {
 }
 
 class _EventDetailPageState extends State<EventDetailPage> {
-  final Set<String> _selectedPhotoIds = {};
-
-  @override
-  void initState() {
-    super.initState();
-    // Select all photos by default
-    _selectedPhotoIds.addAll(widget.event.photos.map((p) => p.id));
-  }
-
-  void _togglePhotoSelection(Photo photo) {
-    setState(() {
-      if (_selectedPhotoIds.contains(photo.id)) {
-        _selectedPhotoIds.remove(photo.id);
-      } else {
-        _selectedPhotoIds.add(photo.id);
-      }
-    });
-  }
-
-  void _navigateToConfigPage() {
-    if (_selectedPhotoIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请至少选择一张照片')));
-      return;
-    }
-
-    final selectedPhotos = widget.event.photos
-        .where((photo) => _selectedPhotoIds.contains(photo.id))
-        .toList();
-
-    Navigator.push(
+  Future<void> _openPhotoSelection() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ConfigPage(
-          event: widget.event,
-          selectedPhotos: selectedPhotos,
-          recommendedThemes: widget.event.aiThemes,
-        ),
+        builder: (context) => PhotoSelectionPage(event: widget.event),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final coverPhoto = widget.event.coverPhotos.isNotEmpty
+        ? widget.event.coverPhotos.first
+        : null;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          const SliverAppBar(title: Text('选择照片'), pinned: true),
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 420,
+            title: Text(widget.event.title),
+            flexibleSpace: FlexibleSpaceBar(
+              background: MoviePosterStack(
+                title: widget.event.title,
+                subtitle: widget.event.tags.take(3).join(' · '),
+                topBadge: '${widget.event.photos.length} 张',
+                metaLine:
+                    '${widget.event.dateRangeText} · ${widget.event.location}',
+                path: coverPhoto?.path,
+                assetId: coverPhoto?.id,
+                borderRadius: 0,
+                background: coverPhoto == null
+                    ? Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF1C1C1E), Color(0xFF3A3A3C)],
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '故事预设',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '从这个事件里挑选最精彩的照片，再选择一个叙事主题，让 AI 生成更有电影感的图文故事。',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey[700],
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
                     children: [
-                      Text(
-                        widget.event.title,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: [
-                          _InfoPill(
-                            icon: Icons.calendar_today_outlined,
-                            label: widget.event.dateRangeText,
-                          ),
-                          _InfoPill(
-                            icon: Icons.location_on_outlined,
-                            label: widget.event.location,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '已选择 ${_selectedPhotoIds.length} / ${widget.event.photos.length} 张照片',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '先专注筛选照片，下一步再选择 AI 主题并生成故事。',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[700],
-                          height: 1.5,
-                        ),
-                      ),
+                      _InfoPill(label: '${widget.event.photos.length} 张照片'),
+                      _InfoPill(label: widget.event.dateRangeText),
+                      _InfoPill(label: widget.event.location),
                     ],
                   ),
-                ),
+                  if (widget.event.tags.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: widget.event.tags.take(8).map((tag) {
+                        return _InfoPill(label: tag);
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  PrimaryButton(
+                    text: '生成 AI 故事',
+                    icon: Icons.auto_stories_outlined,
+                    onPressed: _openPhotoSelection,
+                  ),
+                ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final photo = widget.event.photos[index];
-                final isSelected = _selectedPhotoIds.contains(photo.id);
-
-                return GestureDetector(
-                  onTap: () => _togglePhotoSelection(photo),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: PathImage(path: photo.path, fit: BoxFit.cover),
-                      ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                          color: isSelected
-                              ? Colors.transparent
-                              : Colors.black.withValues(alpha: 0.18),
-                        ),
-                      ),
-                      if (isSelected)
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: const [],
-                            ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              }, childCount: widget.event.photos.length),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: PrimaryButton(
-            text: '下一步：生成故事',
-            icon: Icons.auto_stories_outlined,
-            onPressed: () async => _navigateToConfigPage(),
-          ),
-        ),
       ),
     );
   }
 }
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.label});
+  const _InfoPill({required this.label});
 
-  final IconData icon;
   final String label;
 
   @override
@@ -207,21 +128,14 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F7),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.grey[700]),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
-          ),
-        ],
+      child: Text(
+        label,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: Colors.grey[800]),
       ),
     );
   }
