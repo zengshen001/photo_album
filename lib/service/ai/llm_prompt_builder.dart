@@ -65,6 +65,8 @@ class LlmPromptBuilder {
           {'role': 'system', 'content': systemText},
           {'role': 'user', 'content': prompt},
         ],
+        'max_tokens': 1500,
+        'temperature': 0.85,
       };
     }
 

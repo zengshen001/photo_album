@@ -1,7 +1,10 @@
+import 'dart:developer';
 import 'dart:io';
+
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:isar/isar.dart';
+
 import '../../models/entity/photo_entity.dart';
 import '../../models/entity/event_entity.dart';
 import '../../utils/photo/ai_score_helper.dart';
@@ -14,14 +17,19 @@ class AIService {
   factory AIService() => _instance;
   AIService._internal();
 
-  // 🧠 核心方法：批量分析未处理的照片（包含人脸检测和情感分析）
-  Future<void> analyzePhotosInBackground({int batchSize = 10}) async {
+  Future<Set<int>> analyzePhotosInBackground({
+    int batchSize = 10,
+    Set<int>? eventIds,
+  }) async {
     final isar = PhotoService().isar;
-    final eligibleEventIds = await _loadEligibleEventIds(isar);
+    final eligibleEventIds = await _loadEligibleEventIds(
+      isar,
+      onlyEventIds: eventIds,
+    );
 
     if (eligibleEventIds.isEmpty) {
-      print("ℹ️ 没有满足展示阈值的事件，跳过 AI 分析");
-      return;
+      log('没有满足展示阈值的事件，跳过 AI 分析', name: 'AIService');
+      return {};
     }
 
     // 2. 初始化 ML Kit 组件
@@ -51,7 +59,7 @@ class AIService {
         break;
       }
 
-      print("🤖 开始 AI 视觉分析（含情感分析），本批次: ${photos.length} 张");
+      log('开始 AI 视觉分析，本批次: ${photos.length} 张', name: 'AIService');
 
       for (final photo in photos) {
         final result = await _analyzeSinglePhoto(
@@ -67,6 +75,10 @@ class AIService {
         // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
         await Future.delayed(const Duration(milliseconds: 100));
       }
+
+      if (affectedEventIds.isNotEmpty) {
+        await EventService().refreshEventSmartInfo(affectedEventIds.toList());
+      }
     }
 
     // 6. 关闭资源
@@ -75,20 +87,33 @@ class AIService {
 
     // 🔔 批量通知 EventService 刷新智能信息
     if (affectedEventIds.isNotEmpty) {
-      print("🔔 通知 EventService 刷新 ${affectedEventIds.length} 个事件");
+      log(
+        '通知 EventService 刷新 ${affectedEventIds.length} 个事件',
+        name: 'AIService',
+      );
       await EventService().refreshEventSmartInfo(affectedEventIds.toList());
     }
 
-    print("✅ 所有照片 AI 分析完成，总计处理: $totalAnalyzed 张");
+    log('所有照片 AI 分析完成，总计处理: $totalAnalyzed 张', name: 'AIService');
+    return affectedEventIds;
   }
 
-  Future<Set<int>> _loadEligibleEventIds(Isar isar) async {
+  Future<Set<int>> _loadEligibleEventIds(
+    Isar isar, {
+    Set<int>? onlyEventIds,
+  }) async {
     final visibleEvents = await isar
         .collection<EventEntity>()
         .where()
         .findAll();
     return visibleEvents
-        .where((event) => event.photoCount >= EventService.minPhotosForDisplay)
+        .where((event) {
+          final isVisible =
+              event.photoCount >= EventService.minPhotosForDisplay;
+          final isRequested =
+              onlyEventIds == null || onlyEventIds.contains(event.id);
+          return isVisible && isRequested;
+        })
         .map((event) => event.id)
         .toSet();
   }
@@ -163,8 +188,9 @@ class AIService {
       );
 
       final fileName = photo.path.split('/').last;
-      print(
-        "✅ [AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}",
+      log(
+        '[AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}',
+        name: 'AIService',
       );
       return _AiAnalysisResult(eventId: photo.eventId);
     } catch (e) {
@@ -183,7 +209,7 @@ class AIService {
     required String reason,
     required Isar isar,
   }) async {
-    print("❌ $reason");
+    log(reason, name: 'AIService');
     await _markAsAnalyzed(photoId, [], 0, 0.0, 0.0, isar);
   }
 

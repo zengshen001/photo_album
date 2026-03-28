@@ -118,6 +118,7 @@ class EventEntity {
       photos: photos,
       tags: tags,
       aiThemes: themes,
+      analyzedPhotoCount: analyzedPhotoCount,
       isFestivalEvent: isFestivalEvent,
       festivalName: festivalName,
     );

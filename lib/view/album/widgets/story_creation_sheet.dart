@@ -8,6 +8,7 @@ import '../../../models/story_theme_selection.dart';
 import '../../../models/vo/photo.dart';
 import '../../../service/photo/photo_service.dart';
 import '../../../service/story/story_service.dart';
+import '../../widgets/ai_backdrop.dart';
 import '../../story/story_editor_page.dart';
 
 class StoryCreationSheet extends StatefulWidget {
@@ -28,9 +29,9 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
   final _controller = TextEditingController();
   bool _isGenerating = false;
 
-  void _generateStory() async {
+  void _generateStory({StoryThemeSelection? themeSelection}) async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && themeSelection == null) return;
 
     setState(() => _isGenerating = true);
 
@@ -48,11 +49,13 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
           .anyOf(assetIds, (q, id) => q.assetIdEqualTo(id))
           .findAll();
 
-      final selection = StoryThemeSelection(
-        themeTitle: text,
-        subtitle: '一段值得回味的故事',
-        source: StoryThemeSource.custom,
-      );
+      final selection =
+          themeSelection ??
+          StoryThemeSelection(
+            themeTitle: text,
+            subtitle: '一段值得回味的故事',
+            source: StoryThemeSource.custom,
+          );
 
       final storyEntity = await StoryService().generateStory(
         event: eventEntity,
@@ -70,37 +73,46 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('故事生成失败，请重试')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('故事生成失败，请重试')));
         setState(() => _isGenerating = false);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('错误：$e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('错误：$e')));
       setState(() => _isGenerating = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+    final theme = Theme.of(context);
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final safePadding = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFDFEFF), Color(0xFFF3F9FF)],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      // 固定最大高度，超出时内容可滚动
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 拖拽条（固定不滚动）
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Center(
               child: Container(
                 width: 40,
                 height: 4,
@@ -110,62 +122,140 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              '为故事命名',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '已选择 ${widget.selectedPhotos.length} 张照片',
-              style: TextStyle(color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: '例如：完美的海边假日...',
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.all(16),
+          ),
+          // 可滚动内容区
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                bottomInset > 0 ? bottomInset + 16 : safePadding + 16,
               ),
-              maxLines: null,
-              onSubmitted: (_) => _generateStory(),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _isGenerating ? null : _generateStory,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: _isGenerating
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'AI 生成',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AIPanel(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        Text(
+                          '为故事命名',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '已选择 ${widget.selectedPhotos.length} 张照片',
+                          style: TextStyle(color: Colors.grey[700]),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
+                  ),
+                  if (widget.event.aiThemes.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'AI 推荐主题',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: widget.event.aiThemes.map((theme) {
+                        return ActionChip(
+                          label: Text('${theme.emoji} ${theme.title}'),
+                          avatar: Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          onPressed: () {
+                            _controller.text = theme.title;
+                            _generateStory(
+                              themeSelection:
+                                  StoryThemeSelection.fromAITheme(theme),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _controller,
+                    autofocus: widget.event.aiThemes.isEmpty,
+                    decoration: InputDecoration(
+                      hintText: '或者在这里自定义主题...',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFD8E6FF)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFD8E6FF)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                    maxLines: 1,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _generateStory(),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _isGenerating ? null : _generateStory,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isGenerating
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'AI 生成',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

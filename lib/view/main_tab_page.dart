@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'widgets/ai_backdrop.dart';
 import 'album/album_feed_page.dart';
 import 'story/stories_page.dart';
 
@@ -14,32 +15,37 @@ class MainTabPage extends StatefulWidget {
 class _MainTabPageState extends State<MainTabPage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
-    AlbumFeedPage(),
-    StoriesPage(),
-  ];
+  final List<Widget> _pages = const [AlbumFeedPage(), StoriesPage()];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: AIBackdrop(
+        child: IndexedStack(index: _currentIndex, children: _pages),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(left: 32, right: 32, bottom: 8),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.8),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.86),
+                const Color(0xFFF3F9FF).withValues(alpha: 0.9),
+              ],
+            ),
             borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: const Color(0xFFD8E6FF)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              )
+                color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
           child: ClipRRect(
@@ -49,8 +55,18 @@ class _MainTabPageState extends State<MainTabPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildNavItem(0, Icons.photo_library_outlined, Icons.photo_library, '回忆'),
-                  _buildNavItem(1, Icons.auto_stories_outlined, Icons.auto_stories, '故事'),
+                  _buildNavItem(
+                    0,
+                    Icons.photo_library_outlined,
+                    Icons.photo_library,
+                    '回忆',
+                  ),
+                  _buildNavItem(
+                    1,
+                    Icons.auto_stories_outlined,
+                    Icons.auto_stories,
+                    '故事',
+                  ),
                 ],
               ),
             ),
@@ -60,10 +76,15 @@ class _MainTabPageState extends State<MainTabPage> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+  ) {
     final isSelected = _currentIndex == index;
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -75,7 +96,15 @@ class _MainTabPageState extends State<MainTabPage> {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withValues(alpha: 0.16),
+                    theme.colorScheme.secondary.withValues(alpha: 0.08),
+                  ],
+                )
+              : null,
+          color: isSelected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(

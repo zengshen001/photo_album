@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:developer';
+
 import 'package:isar/isar.dart';
 
+import '../ai/ai_service.dart';
 import '../../models/entity/event_entity.dart';
 import '../../utils/event/event_cluster_helper.dart';
 import '../../utils/event/event_festival_rules.dart';
@@ -49,6 +53,8 @@ class EventService {
     minPhotosForDisplay: minPhotosForDisplay,
     topTagLimit: _topTagLimit,
   );
+  bool _isAiEnhancementRunning = false;
+  final Set<int> _pendingAiEventIds = <int>{};
 
   static bool shouldResolvePhotoLocation({
     required int eventPhotoCount,
@@ -78,23 +84,25 @@ class EventService {
       useIncrementalEventUpdate: _useIncrementalEventUpdate,
     );
     if (execution == null) {
-      print("⚠️ 没有照片可以聚类");
+      log('没有照片可以聚类', name: 'EventService');
       return;
     }
 
-    print("🔍 开始聚类分析，共 ${execution.photoCount} 张照片");
-    print(
-      "✅ 聚类完成: 初分簇=${execution.initialClusterCount} "
-      "合并=${execution.mergedCount} 最终事件=${execution.finalClusterCount}",
+    log('开始聚类分析，共 ${execution.photoCount} 张照片', name: 'EventService');
+    log(
+      '聚类完成: 初分簇=${execution.initialClusterCount} '
+      '合并=${execution.mergedCount} 最终事件=${execution.finalClusterCount}',
+      name: 'EventService',
     );
 
     if (execution.incrementalMode) {
-      print(
-        "💾 事件增量更新完成: 匹配保留=${execution.matchedCount} 新建=${execution.newCount} "
-        "保留未匹配旧事件=${execution.retainedUnmatchedOldCount}",
+      log(
+        '事件增量更新完成: 匹配保留=${execution.matchedCount} 新建=${execution.newCount} '
+        '保留未匹配旧事件=${execution.retainedUnmatchedOldCount}',
+        name: 'EventService',
       );
     } else {
-      print("💾 事件全量重建完成（回滚模式）");
+      log('事件全量重建完成（回滚模式）', name: 'EventService');
     }
 
     await _validateEventPhotoConsistency(execution.affectedEventIds);
@@ -108,6 +116,8 @@ class EventService {
       isar: isar,
       onlyEventIds: execution.affectedEventIds,
     );
+
+    unawaited(_scheduleAiEnhancement(execution.affectedEventIds));
   }
 
   /// 轻量一致性校验，用于发现事件写入异常。
@@ -123,10 +133,47 @@ class EventService {
         continue;
       }
       if (event.photoCount != event.photoIds.length) {
-        print(
-          "⚠️ 事件一致性异常: id=$eventId photoCount=${event.photoCount} photoIds=${event.photoIds.length}",
+        log(
+          '事件一致性异常: id=$eventId photoCount=${event.photoCount} photoIds=${event.photoIds.length}',
+          name: 'EventService',
         );
       }
+    }
+  }
+
+  Future<void> _scheduleAiEnhancement(Set<int> eventIds) async {
+    if (eventIds.isEmpty) {
+      return;
+    }
+
+    _pendingAiEventIds.addAll(eventIds);
+    if (_isAiEnhancementRunning) {
+      log(
+        'AI 增强任务已在运行，合并新的事件队列: ${_pendingAiEventIds.length}',
+        name: 'EventService',
+      );
+      return;
+    }
+
+    _isAiEnhancementRunning = true;
+    try {
+      while (_pendingAiEventIds.isNotEmpty) {
+        final batchEventIds = Set<int>.from(_pendingAiEventIds);
+        _pendingAiEventIds.clear();
+
+        log('启动后台 AI 增强，事件数: ${batchEventIds.length}', name: 'EventService');
+        await AIService().analyzePhotosInBackground(eventIds: batchEventIds);
+        await refreshEventSmartInfo(batchEventIds.toList());
+      }
+    } catch (e, stackTrace) {
+      log(
+        '后台 AI 增强失败: $e',
+        name: 'EventService',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _isAiEnhancementRunning = false;
     }
   }
 

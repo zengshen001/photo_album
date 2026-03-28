@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
+import '../widgets/ai_backdrop.dart';
 import 'widgets/story_creation_sheet.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -14,19 +16,21 @@ class EventDetailPage extends StatefulWidget {
 }
 
 class _EventDetailPageState extends State<EventDetailPage> {
-  final Set<String> _selectedPhotoIds = {};
-  bool _selectionMode = false;
+  late final Set<String> _selectedPhotoIds;
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to selecting all photos
+    _selectedPhotoIds = widget.event.photos.map((p) => p.id).toSet();
+  }
 
   void _toggleSelection(Photo photo) {
     setState(() {
       if (_selectedPhotoIds.contains(photo.id)) {
         _selectedPhotoIds.remove(photo.id);
-        if (_selectedPhotoIds.isEmpty) {
-          _selectionMode = false;
-        }
       } else {
         _selectedPhotoIds.add(photo.id);
-        _selectionMode = true;
       }
     });
   }
@@ -42,7 +46,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
       backgroundColor: Colors.transparent,
       builder: (context) => StoryCreationSheet(
         event: widget.event,
-        selectedPhotos: selectedPhotos.isEmpty ? widget.event.photos : selectedPhotos,
+        selectedPhotos: selectedPhotos.isEmpty
+            ? widget.event.photos
+            : selectedPhotos,
       ),
     );
   }
@@ -53,153 +59,197 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final coverPhoto = widget.event.photos.first;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            stretch: true,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            actions: [
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    if (_selectionMode) {
-                      _selectedPhotoIds.clear();
-                      _selectionMode = false;
-                    } else {
-                      _selectionMode = true;
-                    }
-                  });
-                },
-                child: Text(
-                  _selectionMode ? '取消选择' : '选择',
-                  style: TextStyle(
-                    color: _selectionMode ? theme.colorScheme.primary : Colors.black87,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 20, bottom: 16, right: 20),
-              title: Text(
-                widget.event.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1))
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              stretchModes: const [StretchMode.zoomBackground],
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Hero(
-                    tag: 'event_cover_${widget.event.id}',
-                    child: Image.file(
-                      File(coverPhoto.path),
-                      fit: BoxFit.cover,
+      backgroundColor: Colors.transparent,
+      body: AIBackdrop(
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 300,
+              pinned: true,
+              stretch: true,
+              backgroundColor: Colors.white.withValues(alpha: 0.72),
+              surfaceTintColor: Colors.transparent,
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedPhotoIds.length ==
+                          widget.event.photos.length) {
+                        _selectedPhotoIds.clear();
+                      } else {
+                        _selectedPhotoIds.addAll(
+                          widget.event.photos.map((p) => p.id),
+                        );
+                      }
+                    });
+                  },
+                  child: Text(
+                    _selectedPhotoIds.length == widget.event.photos.length
+                        ? '取消全选'
+                        : '全选',
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 120,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.6),
-                            Colors.transparent,
+                ),
+                const SizedBox(width: 8),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(
+                  left: 20,
+                  bottom: 16,
+                  right: 20,
+                ),
+                title: Text(
+                  widget.event.displayTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black54,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                stretchModes: const [StretchMode.zoomBackground],
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Hero(
+                      tag: 'event_cover_${widget.event.id}',
+                      child: Image.file(
+                        File(coverPhoto.path),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 88,
+                      child: AIPanel(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 18,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.event.isAiAnalysisComplete
+                                    ? '已选择 ${_selectedPhotoIds.length}/${widget.event.photos.length} 张照片，可直接生成 AI 故事。'
+                                    : '${widget.event.aiAnalysisStatusText}，已选择 ${_selectedPhotoIds.length}/${widget.event.photos.length} 张照片。',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 120,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.6),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(2),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
                   final photo = widget.event.photos[index];
                   final isSelected = _selectedPhotoIds.contains(photo.id);
 
                   return GestureDetector(
-                    onTap: () {
-                      if (_selectionMode) {
-                        _toggleSelection(photo);
-                      } else {
-                        // View Image natively (optional placeholder logic)
-                      }
-                    },
-                    onLongPress: () {
-                      if (!_selectionMode) {
-                        _toggleSelection(photo);
-                      }
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(
-                          File(photo.path),
-                          fit: BoxFit.cover,
-                        ),
-                        if (_selectionMode) ...[
-                          Container(
-                            color: isSelected 
-                                ? Colors.black.withValues(alpha: 0.3) 
-                                : Colors.white.withValues(alpha: 0.3),
+                    onTap: () => _toggleSelection(photo),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(File(photo.path), fit: BoxFit.cover),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            color: isSelected
+                                ? Colors.black.withValues(alpha: 0.28)
+                                : Colors.white.withValues(alpha: 0.1),
                           ),
                           Positioned(
                             right: 8,
                             top: 8,
                             child: Icon(
-                              isSelected ? Icons.check_circle : Icons.circle_outlined,
-                              color: isSelected ? theme.colorScheme.primary : Colors.white,
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              color: isSelected
+                                  ? theme.colorScheme.secondary
+                                  : Colors.white,
                               size: 24,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   );
-                },
-                childCount: widget.event.photos.length,
+                }, childCount: widget.event.photos.length),
               ),
             ),
-          ),
-          // Bottom padding for FAB
-          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-        ],
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showStoryCreationSheet,
+        onPressed: () {
+          if (_selectedPhotoIds.isEmpty) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('至少需要选择一张图片才能生成故事噢')));
+            return;
+          }
+          _showStoryCreationSheet();
+        },
         elevation: 4,
         highlightElevation: 8,
         icon: const Icon(Icons.auto_awesome),
         label: Text(
-          _selectedPhotoIds.isEmpty 
-              ? '生成故事' 
+          _selectedPhotoIds.isEmpty
+              ? '生成故事'
               : '生成故事 (${_selectedPhotoIds.length})',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
