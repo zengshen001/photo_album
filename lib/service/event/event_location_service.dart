@@ -170,7 +170,10 @@ class EventLocationService {
         if (latest == null) return;
         latest.province = province;
         latest.city = city;
-        if (latest.city != null && latest.city!.isNotEmpty) {
+        if (latest.city != null &&
+            latest.city!.isNotEmpty &&
+            !latest.isLlmGenerated &&
+            !latest.isFestivalEvent) {
           latest.title = "${latest.city} · ${latest.dateRangeText}";
         }
         await isar.collection<EventEntity>().put(latest);

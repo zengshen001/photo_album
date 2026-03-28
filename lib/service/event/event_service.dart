@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 
 import '../../models/entity/event_entity.dart';
 import '../../utils/event/event_cluster_helper.dart';
+import '../../utils/event/event_festival_rules.dart';
 import 'event_clustering_service.dart';
 import 'event_location_service.dart';
 import 'event_smart_info_service.dart';
@@ -29,6 +30,9 @@ class EventService {
     minPhotosPerClusterForMerge: 1,
     enableSameDayTravelMerge: true,
     enableCrossDayTravelMerge: true,
+    enableFestivalClustering: true,
+    festivalMergeGapHours: 48,
+    festivalListVersion: EventFestivalRules.builtInVersion,
   );
 
   static const int minPhotosForDisplay = 5;

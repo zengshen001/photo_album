@@ -67,6 +67,28 @@ class EventCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  if (event.isFestivalEvent && event.festivalName != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Text(
+                        event.festivalName!,
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Wrap(
                     spacing: 8,
                     children: event.tags.map((tag) {

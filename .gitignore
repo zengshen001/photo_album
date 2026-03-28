@@ -60,3 +60,7 @@ CLAUDE.md
 
 # test
 /imgs/
+
+# local runtime secrets
+/env/*.json
+!/env/*.example.json

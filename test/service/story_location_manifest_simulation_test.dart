@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo_album/models/entity/event_entity.dart';
 import 'package:photo_album/models/entity/photo_entity.dart';
+import 'package:photo_album/models/story_theme_selection.dart';
 import 'package:photo_album/utils/story/story_prompt_helper.dart';
 
 void main() {
@@ -51,8 +52,11 @@ void main() {
 
       final descriptions = StoryPromptHelper.buildPhotoDescriptions(photos);
       final prompt = StoryPromptHelper.buildStoryPrompt(
-        title: '深圳两天旅行',
-        subtitle: '城市海风与夜景',
+        selection: const StoryThemeSelection(
+          themeTitle: '深圳两天旅行',
+          subtitle: '城市海风与夜景',
+          source: StoryThemeSource.custom,
+        ),
         event: event,
         photoDescriptions: descriptions,
         isShort: false,

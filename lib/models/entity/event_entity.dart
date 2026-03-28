@@ -5,6 +5,7 @@ import '../ai_theme.dart';
 import 'photo_entity.dart';
 import '../event.dart';
 import '../vo/photo.dart';
+import '../../utils/event/event_festival_rules.dart';
 
 part 'event_entity.g.dart';
 
@@ -42,6 +43,9 @@ class EventEntity {
   List<String>? aiThemes; // AI 生成的标题列表（本地规则：1个，LLM：3-5个）
   bool isLlmGenerated = false; // 标记当前标题是否由 LLM 生成
   int analyzedPhotoCount = 0; // 已分析照片数量（进度追踪）
+  bool isFestivalEvent = false;
+  String? festivalName;
+  double? festivalScore;
 
   // 🎨 季节推导 (根据月份自动计算)
   String get season {
@@ -114,6 +118,8 @@ class EventEntity {
       photos: photos,
       tags: tags,
       aiThemes: themes,
+      isFestivalEvent: isFestivalEvent,
+      festivalName: festivalName,
     );
   }
 
@@ -174,7 +180,10 @@ class EventEntity {
   }
 
   // 📊 从照片列表生成事件的工厂方法
-  static EventEntity fromPhotos(List<PhotoEntity> photos) {
+  static EventEntity fromPhotos(
+    List<PhotoEntity> photos, {
+    FestivalMatchResult? festivalMatch,
+  }) {
     if (photos.isEmpty) {
       throw ArgumentError('Cannot create event from empty photo list');
     }
@@ -188,6 +197,12 @@ class EventEntity {
       ..photoIds = photos.map((p) => p.id).toList()
       ..photoCount = photos.length
       ..coverPhotoId = photos.first.id;
+
+    final resolvedFestivalMatch =
+        festivalMatch ?? EventFestivalRules.matchCluster(photos);
+    event.isFestivalEvent = resolvedFestivalMatch.isFestivalEvent;
+    event.festivalName = resolvedFestivalMatch.festivalName;
+    event.festivalScore = resolvedFestivalMatch.festivalScore;
 
     // 计算中心坐标
     final photosWithGPS = photos
@@ -218,7 +233,9 @@ class EventEntity {
     // 生成默认标题（日期范围）
     final start = DateTime.fromMillisecondsSinceEpoch(event.startTime);
     final end = DateTime.fromMillisecondsSinceEpoch(event.endTime);
-    if (start.month == end.month && start.day == end.day) {
+    if (event.isFestivalEvent && event.festivalName != null) {
+      event.title = '${event.festivalName}回忆';
+    } else if (start.month == end.month && start.day == end.day) {
       event.title = '${start.month}月${start.day}日';
     } else {
       event.title = '${start.month}月${start.day}日 - ${end.month}月${end.day}日';

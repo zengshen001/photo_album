@@ -12,6 +12,8 @@ class Event {
   final List<Photo> photos;
   final List<String> tags;
   final List<AITheme> aiThemes;
+  final bool isFestivalEvent;
+  final String? festivalName;
 
   Event({
     required this.id,
@@ -24,6 +26,8 @@ class Event {
     required this.photos,
     this.tags = const [],
     this.aiThemes = const [],
+    this.isFestivalEvent = false,
+    this.festivalName,
   });
 
   // Get cover photos (first 3)

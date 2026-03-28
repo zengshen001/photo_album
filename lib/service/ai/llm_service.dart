@@ -98,6 +98,13 @@ class LLMService {
   List<String> _getFallbackTitles(EventEntity event) {
     final location = event.city ?? event.province ?? '未知地点';
     final dateRange = event.dateRangeText;
+    if (event.isFestivalEvent && event.festivalName != null) {
+      return [
+        '${event.festivalName}回忆',
+        '${event.festivalName} · $location',
+        '$location 的${event.festivalName}记忆',
+      ];
+    }
 
     return ['$location · $dateRange', '$location 的记忆', '时光印记 · $location'];
   }
@@ -110,6 +117,15 @@ class LLMService {
     await Future.delayed(const Duration(seconds: 1));
 
     final location = event.city ?? event.province ?? '未知地点';
+
+    if (event.isFestivalEvent && event.festivalName != null) {
+      return [
+        '${event.festivalName}回忆',
+        '${event.festivalName} · $location',
+        '$location 的${event.festivalName}时光',
+        '${event.festivalName}记事',
+      ];
+    }
 
     if (topTags.contains('美食')) {
       return [

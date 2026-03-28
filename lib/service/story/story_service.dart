@@ -4,7 +4,9 @@ import 'package:photo_manager/photo_manager.dart';
 import '../../models/entity/story_entity.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../../models/vo/story_edit_block.dart';
 import '../../models/story_length.dart';
+import '../../models/story_theme_selection.dart';
 import '../../utils/story/story_prompt_helper.dart';
 import '../photo/photo_service.dart';
 import '../ai/llm_service.dart';
@@ -22,16 +24,14 @@ class StoryService {
   /// 参数:
   /// - [event]: 事件实体
   /// - [selectedPhotos]: 用户选中的照片列表
-  /// - [title]: 故事主题/标题
-  /// - [subtitle]: 副标题/切入点
+  /// - [selection]: 结构化主题选择
   /// - [length]: 故事篇幅（短/中）
   ///
   /// 返回: 生成的故事实体（失败返回 null）
   Future<StoryEntity?> generateStory({
     required EventEntity event,
     required List<PhotoEntity> selectedPhotos,
-    required String title,
-    required String subtitle,
+    required StoryThemeSelection selection,
     required StoryLength length,
   }) async {
     try {
@@ -48,8 +48,7 @@ class StoryService {
 
       // 3. 调用 LLM 生成故事内容
       final content = await _generateStoryContent(
-        title: title,
-        subtitle: subtitle,
+        selection: selection,
         event: event,
         photoDescriptions: promptInput.photoDescriptions,
         length: length,
@@ -63,8 +62,8 @@ class StoryService {
 
       // 4. 持久化故事
       final story = await _saveStory(
-        title: title,
-        subtitle: subtitle,
+        title: selection.normalizedThemeTitle,
+        subtitle: selection.normalizedSubtitle,
         content: content,
         eventId: event.id,
         photoIds: promptInput.sortedPhotos.map((p) => p.id).toList(),
@@ -106,10 +105,15 @@ class StoryService {
     required int eventId,
     required List<int> photoIds,
   }) async {
+    final blocks = StoryEntity.parseMarkdownToBlocks(
+      content: content,
+      photoIds: photoIds,
+    );
     final story = StoryEntity.create(
       title: title,
       subtitle: subtitle,
       content: content,
+      contentJson: StoryEntity.encodeEditBlocks(blocks),
       eventId: eventId,
       photoIds: photoIds,
     );
@@ -142,8 +146,7 @@ class StoryService {
 
   /// 🤖 调用 LLM 生成故事内容
   Future<String?> _generateStoryContent({
-    required String title,
-    required String subtitle,
+    required StoryThemeSelection selection,
     required EventEntity event,
     required List<String> photoDescriptions,
     required StoryLength length,
@@ -154,19 +157,13 @@ class StoryService {
     // 检查是否配置了 API Key
     if (!llmService.isApiKeyConfigured) {
       print("⚠️ LLM API Key 未配置，使用模拟模式");
-      return _generateMockStoryContent(
-        title,
-        subtitle,
-        photoDescriptions,
-        length,
-      );
+      return _generateMockStoryContent(selection, photoDescriptions, length);
     }
 
     try {
       // 构造 Prompt
       final prompt = StoryPromptHelper.buildStoryPrompt(
-        title: title,
-        subtitle: subtitle,
+        selection: selection,
         event: event,
         photoDescriptions: photoDescriptions,
         isShort: length == StoryLength.short,
@@ -179,25 +176,18 @@ class StoryService {
       return content;
     } catch (e) {
       print("❌ LLM 调用失败: $e，回退到模拟模式");
-      return _generateMockStoryContent(
-        title,
-        subtitle,
-        photoDescriptions,
-        length,
-      );
+      return _generateMockStoryContent(selection, photoDescriptions, length);
     }
   }
 
   /// 🧪 模拟模式：生成假的故事内容（用于开发测试）
   Future<String> _generateMockStoryContent(
-    String title,
-    String subtitle,
+    StoryThemeSelection selection,
     List<String> photoDescriptions,
     StoryLength length,
   ) async {
     return StoryPromptHelper.generateMockStoryContent(
-      title: title,
-      subtitle: subtitle,
+      selection: selection,
       photoDescriptions: photoDescriptions,
       isShort: length == StoryLength.short,
     );
@@ -237,6 +227,43 @@ class StoryService {
     return true;
   }
 
+  StorySavePayload buildSavePayload(List<StoryEditBlock> blocks) {
+    final normalizedBlocks = StoryEditBlock.normalizeOrder(blocks);
+    return StorySavePayload(
+      contentJson: StoryEntity.encodeEditBlocks(normalizedBlocks),
+      content: StoryEntity.blocksToMarkdown(normalizedBlocks),
+      photoIds: StoryEntity.derivePhotoIds(normalizedBlocks),
+    );
+  }
+
+  Future<bool> updateStoryDraft({
+    required StoryEntity story,
+    required List<StoryEditBlock> blocks,
+  }) async {
+    final snapshot = StorySnapshot.capture(story);
+    final payload = buildSavePayload(blocks);
+    final isar = PhotoService().isar;
+
+    try {
+      story.contentJson = payload.contentJson;
+      story.content = payload.content;
+      story.photoIds = payload.photoIds;
+      story.photoCount = payload.photoIds.length;
+      story.updatedAt = DateTime.now().millisecondsSinceEpoch;
+
+      await isar.writeTxn(() async {
+        await isar.collection<StoryEntity>().put(story);
+      });
+
+      print("💾 故事草稿已更新：ID=${story.id}");
+      return true;
+    } catch (e) {
+      snapshot.restore(story);
+      print("❌ 故事草稿保存失败，已回滚：$e");
+      return false;
+    }
+  }
+
   /// 🗑️ 删除故事
   Future<bool> deleteStory(int storyId) async {
     final isar = PhotoService().isar;
@@ -274,5 +301,51 @@ class StoryService {
     });
 
     return photos;
+  }
+}
+
+class StorySavePayload {
+  const StorySavePayload({
+    required this.contentJson,
+    required this.content,
+    required this.photoIds,
+  });
+
+  final String contentJson;
+  final String content;
+  final List<int> photoIds;
+}
+
+class StorySnapshot {
+  const StorySnapshot({
+    required this.content,
+    required this.contentJson,
+    required this.photoIds,
+    required this.photoCount,
+    required this.updatedAt,
+  });
+
+  final String content;
+  final String? contentJson;
+  final List<int> photoIds;
+  final int photoCount;
+  final int updatedAt;
+
+  factory StorySnapshot.capture(StoryEntity story) {
+    return StorySnapshot(
+      content: story.content,
+      contentJson: story.contentJson,
+      photoIds: List<int>.from(story.photoIds),
+      photoCount: story.photoCount,
+      updatedAt: story.updatedAt,
+    );
+  }
+
+  void restore(StoryEntity story) {
+    story.content = content;
+    story.contentJson = contentJson;
+    story.photoIds = List<int>.from(photoIds);
+    story.photoCount = photoCount;
+    story.updatedAt = updatedAt;
   }
 }

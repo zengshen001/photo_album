@@ -16,17 +16,12 @@ class EventDetailPage extends StatefulWidget {
 
 class _EventDetailPageState extends State<EventDetailPage> {
   final Set<String> _selectedPhotoIds = {};
-  String? _selectedThemeId;
 
   @override
   void initState() {
     super.initState();
     // Select all photos by default
     _selectedPhotoIds.addAll(widget.event.photos.map((p) => p.id));
-    // Select first theme by default
-    if (widget.event.aiThemes.isNotEmpty) {
-      _selectedThemeId = widget.event.aiThemes.first.id;
-    }
   }
 
   void _togglePhotoSelection(Photo photo) {
@@ -40,17 +35,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void _navigateToConfigPage() {
-    final selectedTheme = widget.event.aiThemes
-        .where((theme) => theme.id == _selectedThemeId)
-        .firstOrNull;
-
-    if (selectedTheme == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请选择一个主题')));
-      return;
-    }
-
     if (_selectedPhotoIds.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -68,7 +52,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         builder: (context) => ConfigPage(
           event: widget.event,
           selectedPhotos: selectedPhotos,
-          selectedTheme: selectedTheme,
+          recommendedThemes: widget.event.aiThemes,
         ),
       ),
     );
@@ -105,39 +89,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  // AI theme chips
-                  Text(
-                    'AI 推荐主题',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: widget.event.aiThemes.map((theme) {
-                      final isSelected = theme.id == _selectedThemeId;
-                      return ChoiceChip(
-                        showCheckmark: false,
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(theme.emoji),
-                            const SizedBox(width: 4),
-                            Text(theme.title),
-                          ],
-                        ),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedThemeId = selected ? theme.id : null;
-                          });
-                        },
-                      );
-                    }).toList(),
                   ),
                   const SizedBox(height: 16),
                   // Photo count info

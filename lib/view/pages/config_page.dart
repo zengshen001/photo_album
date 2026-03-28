@@ -4,22 +4,24 @@ import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../../models/ai_theme.dart';
 import '../../models/story_length.dart';
+import '../../models/story_theme_selection.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
 import '../../service/photo/photo_service.dart';
 import '../../service/story/story_service.dart';
+import '../../service/story/story_theme_preference_service.dart';
 import 'story_result_page.dart';
 
 class ConfigPage extends StatefulWidget {
   final Event event;
   final List<Photo> selectedPhotos;
-  final AITheme selectedTheme;
+  final List<AITheme> recommendedThemes;
 
   const ConfigPage({
     super.key,
     required this.event,
     required this.selectedPhotos,
-    required this.selectedTheme,
+    required this.recommendedThemes,
   });
 
   @override
@@ -27,16 +29,26 @@ class ConfigPage extends StatefulWidget {
 }
 
 class _ConfigPageState extends State<ConfigPage> {
+  static const _fallbackSubtitles = ['难忘的回忆', '美好时光', '特别的日子'];
+
+  final StoryThemePreferenceService _preferenceService =
+      StoryThemePreferenceService();
   late TextEditingController _themeController;
+  String? _selectedThemeId;
   String? _selectedSubtitle;
+  StoryThemeTone _selectedTone = StoryThemeTone.warm;
   StoryLength _selectedLength = StoryLength.medium;
   bool _isGenerating = false;
+  bool _isLoadingPreference = true;
 
   @override
   void initState() {
     super.initState();
-    _themeController = TextEditingController(text: widget.selectedTheme.title);
-    _selectedSubtitle = widget.selectedTheme.subtitle;
+    final initialTheme = widget.recommendedThemes.firstOrNull;
+    _themeController = TextEditingController(text: initialTheme?.title ?? '');
+    _selectedThemeId = initialTheme?.id;
+    _selectedSubtitle = initialTheme?.subtitle;
+    _loadLatestSelection();
   }
 
   @override
@@ -45,11 +57,86 @@ class _ConfigPageState extends State<ConfigPage> {
     super.dispose();
   }
 
+  Future<void> _loadLatestSelection() async {
+    final recent = await _preferenceService.loadLatestSelection();
+    if (!mounted) return;
+
+    if (recent == null) {
+      setState(() {
+        _isLoadingPreference = false;
+      });
+      return;
+    }
+
+    final matchedTheme = recent.themeId == null
+        ? null
+        : widget.recommendedThemes
+              .where((theme) => theme.id == recent.themeId)
+              .firstOrNull;
+
+    final nextSelection = matchedTheme != null
+        ? StoryThemeSelection.fromAITheme(matchedTheme, tone: recent.tone)
+        : recent;
+
+    _applySelection(nextSelection);
+    setState(() {
+      _isLoadingPreference = false;
+    });
+  }
+
+  void _applySelection(StoryThemeSelection selection) {
+    _themeController.text = selection.normalizedThemeTitle;
+    _selectedThemeId = selection.source == StoryThemeSource.aiRecommend
+        ? selection.themeId
+        : null;
+    _selectedSubtitle = selection.normalizedSubtitle.isEmpty
+        ? null
+        : selection.normalizedSubtitle;
+    _selectedTone = selection.tone;
+  }
+
+  StoryThemeSelection _buildSelection() {
+    final themeTitle = _themeController.text.trim();
+    final matchedTheme = widget.recommendedThemes
+        .where((theme) => theme.id == _selectedThemeId)
+        .firstOrNull;
+
+    if (matchedTheme != null && matchedTheme.title == themeTitle) {
+      return StoryThemeSelection.fromAITheme(
+        matchedTheme,
+        tone: _selectedTone,
+      ).copyWith(subtitle: _selectedSubtitle ?? '');
+    }
+
+    return StoryThemeSelection(
+      themeTitle: themeTitle,
+      subtitle: _selectedSubtitle ?? '',
+      source: StoryThemeSource.custom,
+      tone: _selectedTone,
+    );
+  }
+
+  void _selectRecommendedTheme(AITheme theme) {
+    setState(() {
+      _selectedThemeId = theme.id;
+      _themeController.text = theme.title;
+      _selectedSubtitle = theme.subtitle;
+    });
+  }
+
+  void _switchToCustomTheme() {
+    setState(() {
+      _selectedThemeId = null;
+    });
+  }
+
   Future<void> _generateStory() async {
-    if (_themeController.text.trim().isEmpty) {
+    final selection = _buildSelection();
+
+    if (!selection.isValid) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请输入故事主题')));
+      ).showSnackBar(const SnackBar(content: Text('请输入 2 到 30 个字的故事主题')));
       return;
     }
 
@@ -88,8 +175,7 @@ class _ConfigPageState extends State<ConfigPage> {
       final story = await StoryService().generateStory(
         event: eventEntity,
         selectedPhotos: photoEntities,
-        title: _themeController.text.trim(),
-        subtitle: _selectedSubtitle ?? '',
+        selection: selection,
         length: _selectedLength,
       );
 
@@ -100,6 +186,8 @@ class _ConfigPageState extends State<ConfigPage> {
       });
 
       if (story != null) {
+        await _preferenceService.saveLatestSelection(selection);
+        if (!mounted) return;
         // 4. 导航到 StoryResultPage.fromStoryEntity
         Navigator.pushReplacement(
           context,
@@ -168,9 +256,45 @@ class _ConfigPageState extends State<ConfigPage> {
           ),
           const SizedBox(height: 24),
 
+          if (_isLoadingPreference)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: LinearProgressIndicator(),
+            ),
+
+          // Recommended themes
+          Text(
+            '推荐主题',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.recommendedThemes.map((theme) {
+              final isSelected = theme.id == _selectedThemeId;
+              return ChoiceChip(
+                showCheckmark: false,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(theme.emoji),
+                    const SizedBox(width: 4),
+                    Text(theme.title),
+                  ],
+                ),
+                selected: isSelected,
+                onSelected: (_) => _selectRecommendedTheme(theme),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+
           // Core theme input
           Text(
-            '核心主题',
+            '自定义主题',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -178,16 +302,13 @@ class _ConfigPageState extends State<ConfigPage> {
           const SizedBox(height: 8),
           TextField(
             controller: _themeController,
+            onChanged: (_) => _switchToCustomTheme(),
             decoration: InputDecoration(
-              hintText: '输入故事主题',
+              hintText: '输入 2 到 30 个字的故事主题',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              prefixIcon: Text(
-                widget.selectedTheme.emoji,
-                style: const TextStyle(fontSize: 24),
-              ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 50),
+              prefixIcon: const Icon(Icons.auto_stories_outlined),
             ),
           ),
           const SizedBox(height: 24),
@@ -203,8 +324,13 @@ class _ConfigPageState extends State<ConfigPage> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [widget.selectedTheme.subtitle, '难忘的回忆', '美好时光', '特别的日子']
-                .map((subtitle) {
+            children:
+                {
+                  ...widget.recommendedThemes
+                      .map((theme) => theme.subtitle)
+                      .where((subtitle) => subtitle.trim().isNotEmpty),
+                  ..._fallbackSubtitles,
+                }.map((subtitle) {
                   final isSelected = subtitle == _selectedSubtitle;
                   return ChoiceChip(
                     label: Text(subtitle),
@@ -215,8 +341,34 @@ class _ConfigPageState extends State<ConfigPage> {
                       });
                     },
                   );
-                })
-                .toList(),
+                }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          Text(
+            '写作语气',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: StoryThemeTone.values.map((subtitle) {
+              final isSelected = subtitle == _selectedTone;
+              return ChoiceChip(
+                label: Text(subtitle.label),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedTone = subtitle;
+                    }
+                  });
+                },
+              );
+            }).toList(),
           ),
           const SizedBox(height: 24),
 
@@ -259,7 +411,9 @@ class _ConfigPageState extends State<ConfigPage> {
 
           // Generate button
           FilledButton(
-            onPressed: _isGenerating ? null : _generateStory,
+            onPressed: _isGenerating || _isLoadingPreference
+                ? null
+                : _generateStory,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),

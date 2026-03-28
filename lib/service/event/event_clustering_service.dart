@@ -4,6 +4,7 @@ import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
 import '../../utils/event/event_cluster_helper.dart';
 import '../../utils/event/event_match_helper.dart';
+import '../../utils/event/event_festival_rules.dart';
 
 class EventClusteringExecution {
   final int photoCount;
@@ -46,7 +47,10 @@ class EventClusteringService {
       photos: allPhotos.reversed.toList(),
       config: clusterConfig,
     );
-    final drafts = _buildClusterDrafts(clusterResult.clusters);
+    final drafts = _buildClusterDrafts(
+      clusterResult.clusters,
+      clusterResult.festivalMatches,
+    );
 
     final persistResult = useIncrementalEventUpdate
         ? await _persistClustersIncrementally(isar: isar, drafts: drafts)
@@ -73,9 +77,19 @@ class EventClusteringService {
         .findAll();
   }
 
-  List<_ClusterDraft> _buildClusterDrafts(List<List<PhotoEntity>> clusters) {
+  List<_ClusterDraft> _buildClusterDrafts(
+    List<List<PhotoEntity>> clusters,
+    List<FestivalMatchResult> festivalMatches,
+  ) {
     return clusters
-        .map((cluster) => _ClusterDraft.fromCluster(cluster))
+        .asMap()
+        .entries
+        .map(
+          (entry) => _ClusterDraft.fromCluster(
+            entry.value,
+            festivalMatch: festivalMatches[entry.key],
+          ),
+        )
         .toList();
   }
 
@@ -184,6 +198,9 @@ class EventClusteringService {
     existing.avgLongitude = draft.avgLongitude;
     existing.tags = draft.tags;
     existing.coverPhotoId = draft.coverPhotoId;
+    existing.isFestivalEvent = draft.isFestivalEvent;
+    existing.festivalName = draft.festivalName;
+    existing.festivalScore = draft.festivalScore;
 
     if (!existing.isLlmGenerated) {
       existing.title = draft.title;
@@ -211,10 +228,16 @@ class _ClusterDraft {
 
   const _ClusterDraft({required this.photos, required this.event});
 
-  factory _ClusterDraft.fromCluster(List<PhotoEntity> cluster) {
+  factory _ClusterDraft.fromCluster(
+    List<PhotoEntity> cluster, {
+    required FestivalMatchResult festivalMatch,
+  }) {
     return _ClusterDraft(
       photos: List<PhotoEntity>.from(cluster),
-      event: EventEntity.fromPhotos(List<PhotoEntity>.from(cluster)),
+      event: EventEntity.fromPhotos(
+        List<PhotoEntity>.from(cluster),
+        festivalMatch: festivalMatch,
+      ),
     );
   }
 }

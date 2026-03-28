@@ -1,5 +1,6 @@
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../../models/story_theme_selection.dart';
 import 'story_mock_generator.dart';
 import 'story_prompt_formatter.dart';
 import 'story_prompt_template.dart';
@@ -12,16 +13,14 @@ class StoryPromptHelper {
   }
 
   static String buildStoryPrompt({
-    required String title,
-    required String subtitle,
+    required StoryThemeSelection selection,
     required EventEntity event,
     required List<String> photoDescriptions,
     required bool isShort,
     required String locationMode,
   }) {
     return StoryPromptTemplate.buildStoryPrompt(
-      title: title,
-      subtitle: subtitle,
+      selection: selection,
       event: event,
       photoDescriptions: photoDescriptions,
       isShort: isShort,
@@ -30,14 +29,13 @@ class StoryPromptHelper {
   }
 
   static Future<String> generateMockStoryContent({
-    required String title,
-    required String subtitle,
+    required StoryThemeSelection selection,
     required List<String> photoDescriptions,
     required bool isShort,
   }) async {
     return StoryMockGenerator.generate(
-      title: title,
-      subtitle: subtitle,
+      title: selection.normalizedThemeTitle,
+      subtitle: selection.normalizedSubtitle,
       photoDescriptions: photoDescriptions,
       isShort: isShort,
     );

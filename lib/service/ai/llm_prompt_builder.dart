@@ -19,6 +19,9 @@ class LlmPromptBuilder {
     final joyScore = event.joyScore != null
         ? event.joyScore!.toStringAsFixed(2)
         : '未知';
+    final festival = event.isFestivalEvent && event.festivalName != null
+        ? event.festivalName
+        : '无';
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -27,6 +30,7 @@ class LlmPromptBuilder {
 - 时间: $dateStr
 - 地点: $location
 - 季节: $season
+- 节日标签: $festival
 - 主要标签: $tagsStr
 - 平均欢乐值: $joyScore (范围 0.0-1.0，越高越快乐)
 

@@ -306,5 +306,111 @@ void main() {
         expect(result.clusters.first.length, 6);
       },
     );
+
+    test('festival clusters are merged within the festival merge window', () {
+      final base = DateTime(2026, 2, 16);
+      final photos = <PhotoEntity>[
+        _photo(
+          id: 1,
+          time: base.add(const Duration(hours: 9)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+        _photo(
+          id: 2,
+          time: base.add(const Duration(hours: 9, minutes: 10)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+        _photo(
+          id: 3,
+          time: base.add(const Duration(hours: 9, minutes: 20)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+        _photo(
+          id: 4,
+          time: base.add(const Duration(hours: 20)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+        _photo(
+          id: 5,
+          time: base.add(const Duration(hours: 20, minutes: 10)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+        _photo(
+          id: 6,
+          time: base.add(const Duration(hours: 20, minutes: 20)),
+          city: '杭州市',
+          province: '浙江省',
+          adcode: '330100',
+        ),
+      ];
+
+      final result = EventClusterHelper.clusterPhotos(
+        photos: photos,
+        config: const ClusterConfig(
+          initialTimeThresholdHours: 3,
+          sameCityTimeThresholdHours: 3,
+          enableSameDayTravelMerge: false,
+          enableFestivalClustering: true,
+          festivalMergeGapHours: 48,
+        ),
+      );
+
+      expect(result.initialClusterCount, 2);
+      expect(result.mergedCount, 1);
+      expect(result.clusters.length, 1);
+      expect(result.festivalMatches.single.isFestivalEvent, isTrue);
+      expect(result.festivalMatches.single.festivalName, '春节');
+      expect(result.festivalMatches.single.festivalScore, 1);
+    });
+
+    test(
+      'festival metadata is attached without merging non-adjacent windows',
+      () {
+        final photos = <PhotoEntity>[
+          _photo(
+            id: 1,
+            time: DateTime(2026, 10, 1, 9),
+            city: '上海市',
+            province: '上海市',
+            adcode: '310100',
+          ),
+          _photo(
+            id: 2,
+            time: DateTime(2026, 10, 1, 10),
+            city: '上海市',
+            province: '上海市',
+            adcode: '310100',
+          ),
+          _photo(
+            id: 3,
+            time: DateTime(2026, 10, 12, 9),
+            city: '上海市',
+            province: '上海市',
+            adcode: '310100',
+          ),
+        ];
+
+        final result = EventClusterHelper.clusterPhotos(
+          photos: photos,
+          config: const ClusterConfig(enableFestivalClustering: true),
+        );
+
+        expect(result.clusters.length, 2);
+        expect(result.festivalMatches.first.festivalName, '国庆');
+        expect(result.festivalMatches.last.isFestivalEvent, isFalse);
+        expect(result.festivalMatches.last.festivalName, isNull);
+        expect(result.festivalMatches.last.festivalScore, 0);
+      },
+    );
   });
 }

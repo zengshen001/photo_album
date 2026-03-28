@@ -163,6 +163,10 @@ class EventSmartInfoService {
   }
 
   String _generateLocalTitle(EventEntity event, Map<String, dynamic> stats) {
+    if (event.isFestivalEvent && event.festivalName != null) {
+      return '${event.festivalName}回忆';
+    }
+
     final date = DateTime.fromMillisecondsSinceEpoch(event.startTime);
     final topTag = stats['topTag'] as String?;
     final joyScore = stats['avgJoyScore'] as double?;
