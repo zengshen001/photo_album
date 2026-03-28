@@ -63,6 +63,7 @@ class StoryEntity {
     if (fromJson.isNotEmpty) {
       return StoryEditBlock.normalizeOrder(fromJson);
     }
+    // 兼容旧版仅 markdown 的故事：首次进入编辑后由上层回写 contentJson。
     return parseMarkdownToBlocks(content: content, photoIds: photoIds);
   }
 

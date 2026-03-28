@@ -16,6 +16,17 @@ class StoryEditBlock {
   bool get hasText => text.trim().isNotEmpty;
   bool get hasPhoto => photoId != null;
 
+  StoryEditBlock withPhoto(int newPhotoId) {
+    return copyWith(
+      photoId: newPhotoId,
+      type: hasText ? StoryEditBlockType.mixed : StoryEditBlockType.image,
+    );
+  }
+
+  StoryEditBlock withoutPhoto() {
+    return copyWith(photoId: null, type: StoryEditBlockType.text);
+  }
+
   StoryEditBlock copyWith({
     StoryEditBlockType? type,
     String? text,

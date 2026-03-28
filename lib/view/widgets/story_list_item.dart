@@ -29,6 +29,7 @@ class StoryListItem extends StatelessWidget {
             // Hero image
             PathImage(
               path: story.heroImage.path,
+              assetId: story.heroImage.id,
               height: 200,
               width: double.infinity,
               fit: BoxFit.cover,

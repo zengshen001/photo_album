@@ -157,7 +157,15 @@ class StoryService {
     // 检查是否配置了 API Key
     if (!llmService.isApiKeyConfigured) {
       print("⚠️ LLM API Key 未配置，使用模拟模式");
-      return _generateMockStoryContent(selection, photoDescriptions, length);
+      final mock = await _generateMockStoryContent(
+        selection,
+        photoDescriptions,
+        length,
+      );
+      print("===== STORY AI RESPONSE (MOCK) =====");
+      print(mock);
+      print("====================================");
+      return mock;
     }
 
     try {
@@ -169,9 +177,19 @@ class StoryService {
         isShort: length == StoryLength.short,
         locationMode: locationMode,
       );
+      print("===== STORY AI REQUEST =====");
+      print("theme: ${selection.normalizedThemeTitle}");
+      print("subtitle: ${selection.normalizedSubtitle}");
+      print("length: ${length.name}");
+      print("locationMode: $locationMode");
+      print("prompt:\n$prompt");
+      print("============================");
 
       // 调用第三方中转站 LLM API
       final content = await llmService.generateBlogText(prompt);
+      print("===== STORY AI RESPONSE =====");
+      print(content ?? 'null');
+      print("=============================");
 
       return content;
     } catch (e) {
@@ -245,6 +263,15 @@ class StoryService {
     final isar = PhotoService().isar;
 
     try {
+      final hasNoContentChange =
+          payload.content == story.content &&
+          payload.contentJson == (story.contentJson ?? '') &&
+          _listEquals(payload.photoIds, story.photoIds);
+      if (hasNoContentChange) {
+        print("ℹ️ 故事草稿无变化，跳过写入：ID=${story.id}");
+        return true;
+      }
+
       story.contentJson = payload.contentJson;
       story.content = payload.content;
       story.photoIds = payload.photoIds;
@@ -262,6 +289,18 @@ class StoryService {
       print("❌ 故事草稿保存失败，已回滚：$e");
       return false;
     }
+  }
+
+  bool _listEquals(List<int> left, List<int> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// 🗑️ 删除故事

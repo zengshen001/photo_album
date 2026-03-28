@@ -8,6 +8,8 @@ import '../../models/vo/story_edit_block.dart';
 import '../../service/photo/photo_service.dart';
 import '../../service/story/story_service.dart';
 import '../widgets/path_image.dart';
+import '../widgets/story_blog_view.dart';
+import '../widgets/story_editable_list.dart';
 import '../widgets/story_editor_toolbar.dart';
 
 class StoryResultPage extends StatefulWidget {
@@ -84,6 +86,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
   bool _isSaving = false;
   bool _hasSaved = false;
   bool _hasUnsavedChanges = false;
+  StoryPageMode _mode = StoryPageMode.read;
 
   bool get _isEditable =>
       widget.storyEntityId != null &&
@@ -100,6 +103,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
     _draftBlocks = _isEditable
         ? StoryEditBlock.normalizeOrder(_storyEntity.resolveEditBlocks())
         : const <StoryEditBlock>[];
+    _mode = StoryPageMode.read;
 
     if (_isEditable &&
         (_storyEntity.contentJson == null ||
@@ -185,44 +189,98 @@ class _StoryResultPageState extends State<StoryResultPage> {
     _replaceDraft(next);
   }
 
+  void _toggleEditMode() {
+    if (!_isEditable) {
+      return;
+    }
+
+    setState(() {
+      _mode = _mode == StoryPageMode.read
+          ? StoryPageMode.edit
+          : StoryPageMode.read;
+    });
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _draftBlocks.length) {
+      return;
+    }
+    final updated = _cloneBlocks(_draftBlocks);
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final moved = updated.removeAt(oldIndex);
+    updated.insert(newIndex, moved);
+    _applyDraftMutation(updated);
+  }
+
   Future<void> _editTextBlock(int index) async {
     final block = _draftBlocks[index];
     final controller = TextEditingController(text: block.text);
 
-    final action = await showDialog<_TextEditorAction>(
+    final action = await showModalBottomSheet<_TextEditorAction>(
       context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('编辑文字'),
-          content: TextField(
-            controller: controller,
-            maxLines: 10,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '编辑文字',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  maxLines: 10,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(context, _TextEditorAction.delete),
+                      child: const Text('删除'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(context, _TextEditorAction.mergePrev),
+                      child: const Text('并入上段'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(context, _TextEditorAction.mergeNext),
+                      child: const Text('并入下段'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(context, _TextEditorAction.split),
+                      child: const Text('按空行拆分'),
+                    ),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.pop(context, _TextEditorAction.save),
+                      child: const Text('保存'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, _TextEditorAction.delete),
-              child: const Text('删除'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, _TextEditorAction.mergePrev),
-              child: const Text('并入上段'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, _TextEditorAction.mergeNext),
-              child: const Text('并入下段'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, _TextEditorAction.split),
-              child: const Text('按空行拆分'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, _TextEditorAction.save),
-              child: const Text('保存'),
-            ),
-          ],
         );
       },
     );
@@ -295,22 +353,71 @@ class _StoryResultPageState extends State<StoryResultPage> {
     }
   }
 
-  Future<void> _replaceImageBlock(int index) async {
-    final selected = await _pickPhoto(
-      initialPhotoId: _draftBlocks[index].photoId,
+  Future<void> _editImageBlock(int index) async {
+    final action = await showModalBottomSheet<_ImageEditorAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      Navigator.pop(context, _ImageEditorAction.replace),
+                  icon: const Icon(Icons.image_search),
+                  label: const Text('替换图片'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      Navigator.pop(context, _ImageEditorAction.insertAfter),
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: const Text('后插图片'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      Navigator.pop(context, _ImageEditorAction.removePhoto),
+                  icon: const Icon(Icons.hide_image_outlined),
+                  label: const Text('移除图片'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (selected == null) {
+    if (action == null) {
       return;
     }
-
-    final updated = _cloneBlocks(_draftBlocks);
-    updated[index] = updated[index].copyWith(
-      type: updated[index].hasText
-          ? StoryEditBlockType.mixed
-          : StoryEditBlockType.image,
-      photoId: selected.id,
-    );
-    _applyDraftMutation(updated);
+    switch (action) {
+      case _ImageEditorAction.replace:
+        final selected = await _pickPhoto(
+          initialPhotoId: _draftBlocks[index].photoId,
+        );
+        if (selected == null) {
+          return;
+        }
+        final updated = _cloneBlocks(_draftBlocks);
+        updated[index] = updated[index].withPhoto(selected.id);
+        _applyDraftMutation(updated);
+        return;
+      case _ImageEditorAction.insertAfter:
+        await _insertImageAfter(index);
+        return;
+      case _ImageEditorAction.removePhoto:
+        final updated = _cloneBlocks(_draftBlocks);
+        final block = updated[index];
+        if (block.type == StoryEditBlockType.image || !block.hasText) {
+          updated.removeAt(index);
+        } else {
+          updated[index] = block.withoutPhoto();
+        }
+        _applyDraftMutation(updated);
+        return;
+    }
   }
 
   Future<void> _insertImageAfter(int index) async {
@@ -341,18 +448,6 @@ class _StoryResultPageState extends State<StoryResultPage> {
         order: 0,
       ),
     );
-    _applyDraftMutation(updated);
-  }
-
-  void _moveBlock(int index, int delta) {
-    final target = index + delta;
-    if (target < 0 || target >= _draftBlocks.length) {
-      return;
-    }
-
-    final updated = _cloneBlocks(_draftBlocks);
-    final block = updated.removeAt(index);
-    updated.insert(target, block);
     _applyDraftMutation(updated);
   }
 
@@ -402,6 +497,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
                               borderRadius: BorderRadius.circular(12),
                               child: PathImage(
                                 path: photo.path,
+                                assetId: photo.assetId,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -499,7 +595,36 @@ class _StoryResultPageState extends State<StoryResultPage> {
     }
   }
 
-  void _closePage() {
+  Future<void> _closePage() async {
+    if (_isEditable && _hasUnsavedChanges) {
+      final shouldLeave = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('未保存改动'),
+            content: const Text('当前有未保存的修改，确认直接离开吗？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('继续编辑'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('直接离开'),
+              ),
+            ],
+          );
+        },
+      );
+      if (shouldLeave != true) {
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
     if (Navigator.of(context).canPop()) {
       Navigator.pop(context, _hasSaved);
       return;
@@ -565,6 +690,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
                 borderRadius: BorderRadius.circular(8),
                 child: PathImage(
                   path: section.photo.path,
+                  assetId: section.photo.id,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
@@ -573,6 +699,14 @@ class _StoryResultPageState extends State<StoryResultPage> {
           ),
         );
       }, childCount: _sections.length),
+    );
+  }
+
+  Widget _buildBlogBody() {
+    return StoryBlogView(
+      blocks: _draftBlocks,
+      photoById: _photoById,
+      emptyHint: '故事内容为空，请切换到编辑模式补充内容。',
     );
   }
 
@@ -636,114 +770,15 @@ class _StoryResultPageState extends State<StoryResultPage> {
       );
     }
 
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final block = _draftBlocks[index];
-        final photo = block.photoId == null ? null : _photoById[block.photoId!];
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '块 ${index + 1}',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: index > 0
-                            ? () => _moveBlock(index, -1)
-                            : null,
-                        icon: const Icon(Icons.arrow_upward),
-                        tooltip: '上移',
-                      ),
-                      IconButton(
-                        onPressed: index < _draftBlocks.length - 1
-                            ? () => _moveBlock(index, 1)
-                            : null,
-                        icon: const Icon(Icons.arrow_downward),
-                        tooltip: '下移',
-                      ),
-                      IconButton(
-                        onPressed: () => _deleteBlock(index),
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: '删除',
-                      ),
-                    ],
-                  ),
-                  if (block.hasText) ...[
-                    InkWell(
-                      onTap: () => _editTextBlock(index),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Text(
-                          block.text,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(height: 1.6),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (block.hasPhoto && photo != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: PathImage(
-                        path: photo.path,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (block.hasText)
-                        OutlinedButton.icon(
-                          onPressed: () => _editTextBlock(index),
-                          icon: const Icon(Icons.edit_note),
-                          label: const Text('编辑文字'),
-                        ),
-                      if (block.hasPhoto)
-                        OutlinedButton.icon(
-                          onPressed: () => _replaceImageBlock(index),
-                          icon: const Icon(Icons.image_search),
-                          label: const Text('替换图片'),
-                        ),
-                      OutlinedButton.icon(
-                        onPressed: () => _insertTextAfter(index),
-                        icon: const Icon(Icons.subject),
-                        label: const Text('插入文字'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _insertImageAfter(index),
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: const Text('插入图片'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }, childCount: _draftBlocks.length),
+    return StoryEditableList(
+      blocks: _draftBlocks,
+      photoById: _photoById,
+      onReorder: _onReorder,
+      onEditText: _editTextBlock,
+      onReplaceImage: _editImageBlock,
+      onInsertTextAfter: _insertTextAfter,
+      onInsertImageAfter: (index) => _insertImageAfter(index),
+      onDeleteBlock: _deleteBlock,
     );
   }
 
@@ -758,7 +793,7 @@ class _StoryResultPageState extends State<StoryResultPage> {
             expandedHeight: 300,
             pinned: true,
             leading: IconButton(
-              onPressed: _closePage,
+              onPressed: () async => _closePage(),
               icon: const Icon(Icons.close),
             ),
             actions: [
@@ -767,6 +802,12 @@ class _StoryResultPageState extends State<StoryResultPage> {
                 icon: const Icon(Icons.share),
                 tooltip: '分享',
               ),
+              if (_isEditable)
+                IconButton(
+                  onPressed: _toggleEditMode,
+                  icon: const Icon(Icons.edit),
+                  tooltip: '切换编辑模式',
+                ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
@@ -786,7 +827,11 @@ class _StoryResultPageState extends State<StoryResultPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  PathImage(path: heroImage.path, fit: BoxFit.cover),
+                  PathImage(
+                    path: heroImage.path,
+                    assetId: heroImage.id,
+                    fit: BoxFit.cover,
+                  ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -816,7 +861,9 @@ class _StoryResultPageState extends State<StoryResultPage> {
               ),
             ),
           ),
-          if (_isEditable)
+          if (_isEditable && _mode == StoryPageMode.read)
+            _buildBlogBody()
+          else if (_isEditable && _mode == StoryPageMode.edit)
             _buildEditableBody(context)
           else
             _buildReadOnlyBody(context),
@@ -824,21 +871,23 @@ class _StoryResultPageState extends State<StoryResultPage> {
         ],
       ),
       bottomNavigationBar: _isEditable
-          ? StoryEditorToolbar(
-              canUndo: _undoStack.isNotEmpty,
-              canRedo: _redoStack.isNotEmpty,
-              isSaving: _isSaving,
-              hasUnsavedChanges: _hasUnsavedChanges,
-              onUndo: _undo,
-              onRedo: _redo,
-              onSave: _saveStory,
-            )
+          ? (_mode == StoryPageMode.edit
+                ? StoryEditorToolbar(
+                    canUndo: _undoStack.isNotEmpty,
+                    canRedo: _redoStack.isNotEmpty,
+                    isSaving: _isSaving,
+                    hasUnsavedChanges: _hasUnsavedChanges,
+                    onUndo: _undo,
+                    onRedo: _redo,
+                    onSave: _saveStory,
+                  )
+                : null)
           : BottomAppBar(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton.icon(
-                    onPressed: _closePage,
+                    onPressed: () async => _closePage(),
                     icon: const Icon(Icons.close),
                     label: const Text('关闭'),
                   ),
@@ -862,3 +911,7 @@ class StorySection {
 }
 
 enum _TextEditorAction { save, delete, split, mergePrev, mergeNext }
+
+enum _ImageEditorAction { replace, insertAfter, removePhoto }
+
+enum StoryPageMode { read, edit }
