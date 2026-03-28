@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_album/service/photo/photo_service.dart';
-import 'view/widget_tree.dart';
+import 'view/main_tab_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const WidgetTree(),
+      home: const MainTabPage(),
     );
   }
 }
