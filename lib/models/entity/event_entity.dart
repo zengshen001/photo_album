@@ -6,6 +6,7 @@ import 'photo_entity.dart';
 import '../event.dart';
 import '../vo/photo.dart';
 import '../../utils/event/event_festival_rules.dart';
+import '../../utils/event/event_scenario_rules.dart';
 
 part 'event_entity.g.dart';
 
@@ -107,6 +108,9 @@ class EventEntity {
     // 3. 构造 Event 对象
     final themes = _buildAiThemes();
 
+    // 适配旧数据：实时使用规则引擎生成最新标签，覆盖存储的旧标签（topN词频）
+    final advancedTags = EventScenarioRules.generateAdvancedTags(photoEntities);
+
     return Event(
       id: id.toString(),
       title: title,
@@ -116,7 +120,7 @@ class EventEntity {
       startDate: DateTime.fromMillisecondsSinceEpoch(startTime),
       endDate: DateTime.fromMillisecondsSinceEpoch(endTime),
       photos: photos,
-      tags: tags,
+      tags: advancedTags,
       aiThemes: themes,
       analyzedPhotoCount: analyzedPhotoCount,
       isFestivalEvent: isFestivalEvent,
@@ -218,18 +222,8 @@ class EventEntity {
           photosWithGPS.length;
     }
 
-    // 聚合标签（取出现频率最高的前5个）
-    final tagCounts = <String, int>{};
-    for (var photo in photos) {
-      if (photo.aiTags != null) {
-        for (var tag in photo.aiTags!) {
-          tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
-        }
-      }
-    }
-    final sortedTags = tagCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    event.tags = sortedTags.take(5).map((e) => e.key).toList();
+    // 生成高级场景标签（规则引擎推导，语义更丰富）
+    event.tags = EventScenarioRules.generateAdvancedTags(photos);
 
     // 生成默认标题（日期范围）
     final start = DateTime.fromMillisecondsSinceEpoch(event.startTime);

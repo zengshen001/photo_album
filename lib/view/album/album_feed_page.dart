@@ -16,6 +16,9 @@ class AlbumFeedPage extends StatefulWidget {
 
 class _AlbumFeedPageState extends State<AlbumFeedPage> {
   Stream<List<Event>>? _eventsStream;
+  List<Event> _allEvents = [];
+  String _searchKeyword = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -34,10 +37,25 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
     });
   }
 
+  List<Event> get _filteredEvents {
+    final kw = _searchKeyword.trim();
+    if (kw.isEmpty) return _allEvents;
+    final lower = kw.toLowerCase();
+    return _allEvents.where((e) {
+      final inTags = e.tags.any((t) => t.toLowerCase().contains(lower));
+      final inTitle = e.title.toLowerCase().contains(lower);
+      final inDisplayTitle = e.displayTitle.toLowerCase().contains(lower);
+      return inTags || inTitle || inDisplayTitle;
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AIBackdrop(
@@ -62,58 +80,11 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                 const SizedBox(width: 8),
               ],
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              sliver: SliverToBoxAdapter(
-                child: AIPanel(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          gradient: LinearGradient(
-                            colors: [
-                              theme.colorScheme.primary.withValues(alpha: 0.95),
-                              theme.colorScheme.secondary.withValues(
-                                alpha: 0.75,
-                              ),
-                            ],
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'AI 回忆整理',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '只做静态视觉升级，不新增加载流程，保持浏览和选图响应速度。',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF475569),
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SearchBarDelegate(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _searchKeyword = v),
               ),
             ),
             StreamBuilder<List<Event>>(
@@ -133,8 +104,16 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                   );
                 }
 
-                final events = snapshot.data;
-                if (events == null || events.isEmpty) {
+                // Sync latest events into state for client-side filtering
+                final fresh = snapshot.data ?? [];
+                if (fresh != _allEvents) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _allEvents = fresh);
+                  });
+                }
+
+                final events = _filteredEvents;
+                if (events.isEmpty) {
                   return SliverFillRemaining(
                     child: Center(
                       child: AIPanel(
@@ -142,7 +121,11 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                           horizontal: 24,
                           vertical: 28,
                         ),
-                        child: const Text('暂无聚类回忆，点击右上角重新扫描'),
+                        child: Text(
+                          _searchKeyword.trim().isEmpty
+                              ? '暂无聚类回忆，点击右上角重新扫描'
+                              : '没有找到「${_searchKeyword.trim()}」相关回忆',
+                        ),
                       ),
                     ),
                   );
@@ -361,6 +344,37 @@ class _EventFeedCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                     ],
+                    // 高级场景标签
+                    if (event.tags.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: event.tags.take(3).map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              tag,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     Row(
                       children: [
                         const Icon(
@@ -398,6 +412,71 @@ class _EventFeedCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pinned search bar for the album feed.
+class _SearchBarDelegate extends SliverPersistentHeaderDelegate {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _SearchBarDelegate({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  static const double _height = 64.0;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  bool shouldRebuild(_SearchBarDelegate oldDelegate) =>
+      controller != oldDelegate.controller;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: _height,
+      color: Colors.white.withValues(alpha: 0.92),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          hintText: '搜索场景，例如：美食、海滩、聚会…',
+          hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: Color(0xFF64748B),
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      size: 18, color: Color(0xFF94A3B8)),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: const Color(0xFFF1F5F9),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
           ),
         ),
       ),
