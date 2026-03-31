@@ -71,11 +71,19 @@ class EventService {
     );
   }
 
+  /// 事件是否对 UI 可见。
+  ///
+  /// 当前策略：照片数达到阈值才展示，避免碎片事件影响体验。
   bool _isEventVisible(EventEntity event) {
     return event.photoCount >= minPhotosForDisplay;
   }
 
   /// 运行一次完整的“照片 -> 事件”聚类流程。
+  ///
+  /// 该方法负责把纯聚类结果“落库 + 触发后续任务”：
+  /// - 聚类持久化：写入/更新 EventEntity，并给 PhotoEntity 回写 eventId
+  /// - 地址解析：仅处理受影响事件（避免全量刷地址）
+  /// - AI 增强：后台分析照片并刷新事件智能信息
   Future<void> runClustering() async {
     final isar = PhotoService().isar;
     final execution = await _clusteringService.run(
@@ -121,6 +129,8 @@ class EventService {
   }
 
   /// 轻量一致性校验，用于发现事件写入异常。
+  ///
+  /// 典型问题：event.photoCount 与 photoIds.length 不一致，可能来自增量更新或回写失败。
   Future<void> _validateEventPhotoConsistency(Set<int> eventIds) async {
     if (eventIds.isEmpty) {
       return;
@@ -141,6 +151,10 @@ class EventService {
     }
   }
 
+  /// 启动（或合并）后台 AI 增强任务。
+  ///
+  /// - 同时只允许一个任务运行，新的 eventIds 会被合并到队列里
+  /// - 每轮取出队列快照进行处理，处理完再检查是否有新增任务
   Future<void> _scheduleAiEnhancement(Set<int> eventIds) async {
     if (eventIds.isEmpty) {
       return;
@@ -177,7 +191,7 @@ class EventService {
     }
   }
 
-  // 📊 获取事件统计信息
+  /// 获取事件统计信息（用于调试/观测）。
   Future<Map<String, int>> getEventStats() async {
     final isar = PhotoService().isar;
     final total = await isar.collection<EventEntity>().count();
@@ -190,7 +204,9 @@ class EventService {
     return {'total': total, 'withLocation': withLocation};
   }
 
-  // 🔄 获取事件流（UI 监听用）
+  /// 获取事件流（UI 监听用）。
+  ///
+  /// 返回按 startTime 倒序的事件列表，并过滤掉低于展示阈值的碎片事件。
   Stream<List<EventEntity>> watchEvents() {
     final isar = PhotoService().isar;
     return isar

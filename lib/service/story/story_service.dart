@@ -26,6 +26,7 @@ class StoryService {
   /// - [selectedPhotos]: 用户选中的照片列表
   /// - [selection]: 结构化主题选择
   /// - [length]: 故事篇幅（短/中）
+  /// - [templateId]: 故事模版ID（可选）
   ///
   /// 返回: 生成的故事实体（失败返回 null）
   Future<StoryEntity?> generateStory({
@@ -33,6 +34,7 @@ class StoryService {
     required List<PhotoEntity> selectedPhotos,
     required StoryThemeSelection selection,
     required StoryLength length,
+    int? templateId,
   }) async {
     try {
       if (!_canGenerateStory(event: event, selectedPhotos: selectedPhotos)) {
@@ -53,6 +55,7 @@ class StoryService {
         photoDescriptions: promptInput.photoDescriptions,
         length: length,
         locationMode: promptInput.locationMode,
+        templateId: templateId,
       );
 
       if (content == null) {
@@ -151,6 +154,7 @@ class StoryService {
     required List<String> photoDescriptions,
     required StoryLength length,
     required String locationMode,
+    int? templateId,
   }) async {
     final llmService = LLMService();
 
@@ -161,6 +165,7 @@ class StoryService {
         selection,
         photoDescriptions,
         length,
+        templateId,
       );
       print("===== STORY AI RESPONSE (MOCK) =====");
       print(mock);
@@ -194,7 +199,12 @@ class StoryService {
       return content;
     } catch (e) {
       print("❌ LLM 调用失败: $e，回退到模拟模式");
-      return _generateMockStoryContent(selection, photoDescriptions, length);
+      return _generateMockStoryContent(
+        selection,
+        photoDescriptions,
+        length,
+        templateId,
+      );
     }
   }
 
@@ -203,6 +213,7 @@ class StoryService {
     StoryThemeSelection selection,
     List<String> photoDescriptions,
     StoryLength length,
+    int? templateId,
   ) async {
     return StoryPromptHelper.generateMockStoryContent(
       selection: selection,

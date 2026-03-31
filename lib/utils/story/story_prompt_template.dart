@@ -10,6 +10,7 @@ class StoryPromptTemplate {
     required List<String> photoDescriptions,
     required bool isShort,
     required String locationMode,
+    int? templateId,
   }) {
     final location = event.city ?? event.province ?? '某地';
     final dateStart = DateTime.fromMillisecondsSinceEpoch(event.startTime);
@@ -26,6 +27,10 @@ class StoryPromptTemplate {
         ? '${event.avgLatitude!.toStringAsFixed(6)},${event.avgLongitude!.toStringAsFixed(6)}'
         : '未知';
 
+    final templateInfo = templateId != null
+        ? '故事模版ID：$templateId\n请参考该模版的风格和结构生成故事，保持类似的叙事节奏和排版方式。'
+        : '';
+
     return '''
 你是一位专业的生活记录博客作家。请根据以下信息撰写一篇第一人称的故事/博客。
 
@@ -37,6 +42,7 @@ class StoryPromptTemplate {
 地点：$location
 事件中心坐标：$eventCenter
 位置线索模式：$locationMode
+$templateInfo
 
 照片描述（共 ${photoDescriptions.length} 张）：
 ${photoDescriptions.map((d) => '- $d').join('\n')}

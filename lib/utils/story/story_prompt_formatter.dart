@@ -22,6 +22,7 @@ class StoryPromptFormatter {
       final gpsText = hasGps
           ? '${photo.latitude!.toStringAsFixed(6)},${photo.longitude!.toStringAsFixed(6)}'
           : '';
+      final caption = photo.caption?.trim() ?? '';
       final locationSegments = <String>[];
       if (addressText.isNotEmpty) {
         locationSegments.add('formatted_address=$addressText');
@@ -37,7 +38,8 @@ class StoryPromptFormatter {
       final desc =
           'Image $i: 拍摄于 $timeStr'
           '${locationText.isNotEmpty ? '，位置线索：$locationText' : ''}'
-          '，标签：$tags';
+          '，标签：$tags'
+          '${caption.isNotEmpty ? '，图注：$caption' : ''}';
       descriptions.add(desc);
     }
     return descriptions;

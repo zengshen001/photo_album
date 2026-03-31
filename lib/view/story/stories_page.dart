@@ -41,10 +41,7 @@ class _StoriesPageState extends State<StoriesPage> {
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          '故事集',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('故事集', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: AIBackdrop(
         child: _isLoading
@@ -76,14 +73,14 @@ class _StoriesPageState extends State<StoriesPage> {
   Widget _buildStoryCard(BuildContext context, StoryEntity story) {
     final theme = Theme.of(context);
     // 尝试取出第一张照片用于封面
-    final firstPhotoId = story.photoIds.isNotEmpty ? story.photoIds.first : null;
+    final firstPhotoId = story.photoIds.isNotEmpty
+        ? story.photoIds.first
+        : null;
 
     return GestureDetector(
       onTap: () async {
         await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => StoryEditorPage(story: story),
-          ),
+          MaterialPageRoute(builder: (_) => StoryEditorPage(story: story)),
         );
         // 返回后刷新列表（可能有保存）
         _loadStories();
@@ -132,10 +129,7 @@ class _StoriesPageState extends State<StoriesPage> {
                     const SizedBox(height: 4),
                     Text(
                       story.subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -151,10 +145,7 @@ class _StoriesPageState extends State<StoriesPage> {
                       const SizedBox(width: 4),
                       Text(
                         '${story.photoCount} 张照片',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                       const SizedBox(width: 12),
                       Icon(
@@ -165,10 +156,7 @@ class _StoriesPageState extends State<StoriesPage> {
                       const SizedBox(width: 4),
                       Text(
                         story.createdAtText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                     ],
                   ),
@@ -211,9 +199,9 @@ class _StoriesPageState extends State<StoriesPage> {
               const SizedBox(height: 18),
               Text(
                 'AI 故事正在等素材',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -260,7 +248,10 @@ class _StoryCardCoverState extends State<_StoryCardCover> {
   Widget build(BuildContext context) {
     final path = _path;
     if (path == null) {
-      return const SizedBox(height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+      return const SizedBox(
+        height: 160,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
     }
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),

@@ -9,9 +9,14 @@ class EventScenarioRules {
     int totalFaces = 0;
     double totalSmileProb = 0.0;
     int photosWithFaces = 0;
+    int graduationSeasonCount = 0;
 
     // 1. 聚合底层特征数据 (去重)
     for (var photo in photos) {
+      final month = DateTime.fromMillisecondsSinceEpoch(photo.timestamp).month;
+      if (month == 6 || month == 7) {
+        graduationSeasonCount++;
+      }
       if (photo.aiTags != null) {
         allTags.addAll(photo.aiTags!); // 收集该事件中出现过的所有基础标签
       }
@@ -23,8 +28,9 @@ class EventScenarioRules {
     }
 
     // 计算有脸照片的平均微笑概率
-    double avgSmile =
-        photosWithFaces == 0 ? 0.0 : totalSmileProb / photosWithFaces;
+    double avgSmile = photosWithFaces == 0
+        ? 0.0
+        : totalSmileProb / photosWithFaces;
     Set<String> advancedTags = {};
 
     // ==========================================
@@ -38,6 +44,17 @@ class EventScenarioRules {
       advancedTags.add("👩❤️👨 双人时光");
     }
 
+    if (totalFaces >= 4 && !advancedTags.contains("🎉 欢乐聚会")) {
+      advancedTags.add("📷 大合照");
+    }
+
+    final graduationSeasonRatio = graduationSeasonCount / photos.length;
+    if (graduationSeasonRatio >= 0.6 &&
+        _containsAny(allTags, ['学校', '教室']) &&
+        photos.length >= 3) {
+      advancedTags.add("🎓 毕业季");
+    }
+
     // 亲子时刻：必须有人脸，且出现儿童相关标签
     if (totalFaces > 0 && _containsAny(allTags, ['儿童', '婴儿'])) {
       advancedTags.add("👶 亲子时刻");
@@ -46,7 +63,17 @@ class EventScenarioRules {
     // 2. 场景组合类 (严谨的多元特征交叉校验，防止误判)
 
     // ⛰️ 拥抱自然：必须同时出现至少 2 个自然类特征 (防止因为背景有一棵树就被判为自然)
-    final natureKeywords = ['山', '山丘', '森林', '树木', '草地', '自然', '风景', '植物', '田野'];
+    final natureKeywords = [
+      '山',
+      '山丘',
+      '森林',
+      '树木',
+      '草地',
+      '自然',
+      '风景',
+      '植物',
+      '田野',
+    ];
     if (_matchCount(allTags, natureKeywords) >= 2) {
       advancedTags.add("⛰️ 拥抱自然");
     }
@@ -92,6 +119,45 @@ class EventScenarioRules {
     if (_containsAny(allTags, ['夜晚', '傍晚']) &&
         _containsAny(allTags, ['灯光', '路灯', '城市'])) {
       advancedTags.add("🌙 魅力夜景");
+    }
+
+    final flowerKeywords = ['花朵', '植物', '花园', '草地'];
+    if (_matchCount(allTags, flowerKeywords) >= 2) {
+      advancedTags.add("🌸 花海漫游");
+    }
+
+    if (_containsAny(allTags, ['博物馆'])) {
+      advancedTags.add("🏛️ 博物馆之旅");
+    }
+
+    if (_containsAny(allTags, ['学校', '教室', '课堂'])) {
+      advancedTags.add("🎓 校园时光");
+    }
+
+    if (_containsAny(allTags, ['商场', '商店', '市场']) &&
+        _containsAny(allTags, ['城市', '街道', '室内'])) {
+      advancedTags.add("🛍️ 逛街买买");
+    }
+
+    if (_containsAny(allTags, ['咖啡', '甜点', '蛋糕']) &&
+        _containsAny(allTags, ['餐厅', '室内', '桌子', '商店'])) {
+      advancedTags.add("☕️ 咖啡甜点");
+    }
+
+    if ((_containsAny(allTags, ['机场', '火车站', '地铁站']) ||
+            _matchCount(allTags, ['飞机', '机场', '火车', '地铁']) >= 2) &&
+        _containsAny(allTags, ['城市', '天空', '道路', '街道'])) {
+      advancedTags.add("✈️ 旅途出发");
+    }
+
+    if (_containsAny(allTags, ['音乐会', '舞台']) &&
+        _containsAny(allTags, ['人群', '夜晚', '灯光'])) {
+      advancedTags.add("🎤 现场演出");
+    }
+
+    if (advancedTags.isEmpty &&
+        _containsAny(allTags, ['室内', '房间', '卧室', '厨房', '沙发'])) {
+      advancedTags.add("🏠 居家日常");
     }
 
     // 3. 兜底策略：如果没有触发任何高级规则，怎么处理？

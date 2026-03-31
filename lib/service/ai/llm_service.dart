@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../models/entity/event_entity.dart';
+import '../../models/entity/photo_entity.dart';
 import 'llm_client.dart';
 import 'llm_error.dart';
 import 'llm_prompt_builder.dart';
@@ -146,6 +147,69 @@ class LLMService {
         '美好瞬间 · $location',
       ];
     }
+  }
+
+  Future<Map<int, String>> generatePhotoCaptions(
+    EventEntity event,
+    List<PhotoEntity> photos,
+  ) async {
+    final fallback = _getFallbackCaptions(event, photos);
+    try {
+      final prompt = LlmPromptBuilder.buildPhotoCaptionPrompt(event, photos);
+      final text = await _chatCompletion(prompt);
+      if (text == null || text.isEmpty) {
+        return fallback;
+      }
+      final parsed = LlmResponseParser.parsePhotoCaptionJson(text);
+      if (parsed.isEmpty) {
+        return fallback;
+      }
+      final merged = Map<int, String>.from(fallback);
+      merged.addAll(parsed);
+      return merged;
+    } on LlmException catch (e) {
+      print("❌ LLM caption 生成失败(${e.type}): ${e.message}");
+      return fallback;
+    } catch (e) {
+      print("❌ LLM caption 生成失败: $e");
+      return fallback;
+    }
+  }
+
+  Future<Map<int, String>> generatePhotoCaptionsMock(
+    EventEntity event,
+    List<PhotoEntity> photos,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _getFallbackCaptions(event, photos);
+  }
+
+  Map<int, String> _getFallbackCaptions(
+    EventEntity event,
+    List<PhotoEntity> photos,
+  ) {
+    final eventLocation = event.city ?? event.province ?? '';
+    final result = <int, String>{};
+    for (final photo in photos) {
+      final topTag = (photo.aiTags ?? const <String>[]).firstWhere(
+        (t) => t.trim().isNotEmpty,
+        orElse: () => '',
+      );
+      final location = (photo.city ?? photo.province ?? eventLocation).trim();
+      final parts = <String>[
+        if (location.isNotEmpty) location,
+        if (topTag.isNotEmpty) topTag,
+      ];
+      var caption = parts.isEmpty ? '美好瞬间' : parts.join('·');
+      if (caption.length < 4 && topTag.isNotEmpty) {
+        caption = '$topTag时光';
+      }
+      if (caption.length > 30) {
+        caption = caption.substring(0, 30);
+      }
+      result[photo.id] = caption;
+    }
+    return result;
   }
 
   /// 📊 检查 API Key 是否已配置

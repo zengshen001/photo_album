@@ -6,15 +6,33 @@ import '../../utils/event/event_cluster_helper.dart';
 import '../../utils/event/event_match_helper.dart';
 import '../../utils/event/event_festival_rules.dart';
 
+/// 一次聚类执行的汇总信息（用于日志与后续增量任务）。
 class EventClusteringExecution {
+  /// 本次参与聚类的照片总数。
   final int photoCount;
+
+  /// 初分簇数量（未做合并/节日后处理前）。
   final int initialClusterCount;
+
+  /// 合并减少的簇数量（初分簇 - 最终簇）。
   final int mergedCount;
+
+  /// 最终事件数量（最终簇数量）。
   final int finalClusterCount;
+
+  /// 本次聚类影响到的事件 ID（新建或被更新）。
   final Set<int> affectedEventIds;
+
+  /// 增量模式：复用旧事件的数量。
   final int matchedCount;
+
+  /// 增量模式：新建事件的数量。
   final int newCount;
+
+  /// 增量模式：未匹配但被判断为“陈旧”的旧事件数量（用于诊断，默认保留）。
   final int retainedUnmatchedOldCount;
+
+  /// 是否启用了增量更新模式。
   final bool incrementalMode;
 
   const EventClusteringExecution({
@@ -30,9 +48,20 @@ class EventClusteringExecution {
   });
 }
 
+/// “照片 -> 事件”的聚类执行器。
+///
+/// 主要职责：
+/// 1) 从数据库读取所有照片（按时间排序）
+/// 2) 调用 [EventClusterHelper] 进行纯内存聚类，得到簇列表 + 节日匹配
+/// 3) 将簇持久化为 [EventEntity]（支持增量更新或全量重建）
+/// 4) 将簇内照片的 eventId 回写到 [PhotoEntity]，用于后续增量任务
 class EventClusteringService {
   const EventClusteringService();
 
+  /// 执行一次聚类。
+  ///
+  /// - [clusterConfig]：控制切分/合并阈值与是否启用节日后处理
+  /// - [useIncrementalEventUpdate]：true 使用“事件复用+增量更新”，false 走“清库重建”
   Future<EventClusteringExecution?> run({
     required Isar isar,
     required ClusterConfig clusterConfig,
@@ -69,6 +98,9 @@ class EventClusteringService {
     );
   }
 
+  /// 读取用于聚类的照片集合（按时间倒序）。
+  ///
+  /// 注意：下游聚类期望时间升序，因此调用处会反转列表以满足“时间升序”约定。
   Future<List<PhotoEntity>> _loadPhotosForClustering(Isar isar) {
     return isar
         .collection<PhotoEntity>()
@@ -77,6 +109,10 @@ class EventClusteringService {
         .findAll();
   }
 
+  /// 将簇列表转换为可持久化的草稿结构（簇照片 + 事件实体）。
+  ///
+  /// 这里会把节日匹配结果传入 [EventEntity.fromPhotos]，让事件实体写入
+  /// isFestivalEvent / festivalName / festivalScore 等字段。
   List<_ClusterDraft> _buildClusterDrafts(
     List<List<PhotoEntity>> clusters,
     List<FestivalMatchResult> festivalMatches,
@@ -93,6 +129,12 @@ class EventClusteringService {
         .toList();
   }
 
+  /// 增量持久化：尽量复用旧事件 ID，减少 UI 抖动与历史数据丢失。
+  ///
+  /// 过程：
+  /// - 用 [EventMatchHelper] 计算“新簇事件”与“旧事件”的一对一匹配
+  /// - 对每个新簇：若匹配到旧事件则更新旧事件，否则新建事件
+  /// - 将簇内照片的 eventId 统一回写
   Future<_PersistResult> _persistClustersIncrementally({
     required Isar isar,
     required List<_ClusterDraft> drafts,
@@ -130,6 +172,9 @@ class EventClusteringService {
     );
   }
 
+  /// 全量重建：清空 EventEntity 后重新写入全部簇。
+  ///
+  /// 该模式用于回滚/兜底场景，代价是事件 ID 会完全变化，UI 会有明显抖动。
   Future<_PersistResult> _persistClustersByFullRebuild({
     required Isar isar,
     required List<_ClusterDraft> drafts,
@@ -155,6 +200,10 @@ class EventClusteringService {
     );
   }
 
+  /// 依据匹配结果对单个簇事件进行 upsert：
+  ///
+  /// - 未匹配：直接 put 新事件
+  /// - 已匹配：读取旧事件并合并字段，再 put 回去（保留旧事件 ID）
   Future<int> _upsertDraftEvent({
     required Isar isar,
     required _ClusterDraft draft,
@@ -175,6 +224,9 @@ class EventClusteringService {
     return isar.collection<EventEntity>().put(existing);
   }
 
+  /// 将簇内每张照片的 eventId 回写为当前事件 ID。
+  ///
+  /// 这一步对“增量更新”和后续服务（地址解析、AI 增强等）都很关键。
   Future<void> _relinkDraftPhotosToEvent({
     required Isar isar,
     required _ClusterDraft draft,
@@ -186,6 +238,12 @@ class EventClusteringService {
     }
   }
 
+  /// 将新草稿事件的字段合并进旧事件实体。
+  ///
+  /// 规则：
+  /// - 聚类结构字段（时间范围、照片列表、坐标、封面等）用草稿覆盖
+  /// - 节日标记用草稿覆盖
+  /// - 如果旧事件已经由 LLM 生成标题，则保留旧标题，否则用草稿标题覆盖
   void _mergeEventWithDraft({
     required EventEntity existing,
     required EventEntity draft,
@@ -208,10 +266,18 @@ class EventClusteringService {
   }
 }
 
+/// 持久化阶段的内部汇总结果。
 class _PersistResult {
+  /// 本次写入/更新影响到的事件 ID 集合。
   final Set<int> affectedEventIds;
+
+  /// 增量模式：复用旧事件的数量。
   final int matchedCount;
+
+  /// 增量模式：新建事件的数量。
   final int newCount;
+
+  /// 增量模式：未匹配但保留的旧事件数量（用于诊断）。
   final int retainedUnmatchedOldCount;
 
   const _PersistResult({
@@ -222,6 +288,7 @@ class _PersistResult {
   });
 }
 
+/// 聚类流程中的内部草稿结构：将一个簇携带的照片列表与对应 EventEntity 绑定在一起。
 class _ClusterDraft {
   final List<PhotoEntity> photos;
   final EventEntity event;

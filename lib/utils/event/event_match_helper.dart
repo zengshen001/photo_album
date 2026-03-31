@@ -2,9 +2,18 @@ import '../../models/entity/event_entity.dart';
 import '../../models/vo/event_match_candidate.dart';
 import 'event_cluster_helper.dart';
 
+/// 增量匹配的配置项。
+///
+/// 增量聚类的目标是：当用户重复扫描/增量同步照片时，尽量让“同一事件”复用同一个 EventEntity.id，
+/// 这样 UI 不会频繁抖动（事件卡片不至于每次都变成新事件）。
 class EventMatchConfig {
+  /// 候选匹配的最低综合分，低于该值直接忽略。
   final double minScore;
+
+  /// 允许作为候选的时间间隔上限（小时），超过则认为不可能是同一事件。
   final int candidateGapHours;
+
+  /// 空间距离阈值（公里），用于把事件中心点距离映射为一个 0~1 的分数。
   final double distanceThresholdKm;
 
   const EventMatchConfig({
@@ -14,6 +23,11 @@ class EventMatchConfig {
   });
 }
 
+/// 增量匹配的输出计划。
+///
+/// - [newIndexToOldId]：新事件（按数组下标）复用到的旧事件 ID
+/// - [staleOldEventIds]：未匹配但与新事件有照片重叠的旧事件（用于诊断抖动）
+/// - [matchedCount]/[newCount]：统计信息
 class EventMatchPlan {
   /// 新事件下标 -> 旧事件 ID。
   ///
@@ -35,6 +49,12 @@ class EventMatchPlan {
   });
 }
 
+/// 增量匹配工具：在“新聚类结果”与“旧事件列表”之间建立稳定映射。
+///
+/// 思路（贪心一对一匹配）：
+/// 1) 为每个 (new, old) 计算综合分（时间相近 + 空间相近 + 照片重叠）
+/// 2) 过滤掉明显不可能的候选（无照片重叠 / 时间差过大 / 分数过低）
+/// 3) 将候选按分数降序排序，依次尝试匹配，保证 old 与 new 都只被使用一次
 class EventMatchHelper {
   const EventMatchHelper._();
 
@@ -215,6 +235,12 @@ class EventMatchHelper {
   }
 }
 
+/// 单次 (old, new) 候选的分数拆解结果。
+///
+/// - score：最终综合分（用于排序与阈值判断）
+/// - timeScore：时间相似度
+/// - distanceScore：空间相似度
+/// - overlapScore：照片重叠相似度
 class EventMatchScore {
   final double score;
   final double timeScore;

@@ -58,8 +58,25 @@ class EventSmartInfoService {
       );
       final shouldUseLlm = progress >= 100;
 
+      // 生成 caption（仅在 AI 分析结束后生成）
+      if (shouldUseLlm) {
+        await _maybeGenerateCaptionsForEvent(
+          isar: isar,
+          event: event,
+          analyzedPhotos: analyzedPhotos,
+        );
+      }
+
       if (shouldUseLlm && event.isLlmGenerated) {
+        // 已有 LLM 标题，只更新统计信息，跳过 LLM 标题生成
         print("  ℹ️ 事件 $eventId 已有 LLM 标题，跳过重复生成");
+        await _applyEventSmartInfoUpdate(
+          isar: isar,
+          eventId: eventId,
+          stats: stats,
+          progress: progress,
+          shouldUseLlm: false, // 传递 false 避免重复生成 LLM 标题
+        );
         return;
       }
 
@@ -72,6 +89,51 @@ class EventSmartInfoService {
       );
     } catch (e) {
       print("  ❌ 刷新事件 $eventId 失败: $e");
+    }
+  }
+
+  Future<void> _maybeGenerateCaptionsForEvent({
+    required Isar isar,
+    required EventEntity event,
+    required List<PhotoEntity> analyzedPhotos,
+  }) async {
+    final needCaption = analyzedPhotos
+        .where((p) => (p.caption?.trim().isEmpty ?? true))
+        .toList();
+    if (needCaption.isEmpty) {
+      return;
+    }
+
+    final llmService = LLMService();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const chunkSize = 20;
+    for (var i = 0; i < needCaption.length; i += chunkSize) {
+      final chunk = needCaption.sublist(
+        i,
+        (i + chunkSize) > needCaption.length
+            ? needCaption.length
+            : i + chunkSize,
+      );
+
+      final captions = llmService.isApiKeyConfigured
+          ? await llmService.generatePhotoCaptions(event, chunk)
+          : await llmService.generatePhotoCaptionsMock(event, chunk);
+
+      if (captions.isEmpty) {
+        continue;
+      }
+
+      await isar.writeTxn(() async {
+        for (final photo in chunk) {
+          final caption = captions[photo.id];
+          if (caption == null || caption.trim().isEmpty) {
+            continue;
+          }
+          photo.caption = caption.trim();
+          photo.captionUpdatedAt = now;
+          await isar.collection<PhotoEntity>().put(photo);
+        }
+      });
     }
   }
 

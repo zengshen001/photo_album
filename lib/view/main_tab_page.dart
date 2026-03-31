@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'widgets/ai_backdrop.dart';
 import 'album/album_feed_page.dart';
+import 'photo/photos_page.dart';
 import 'story/stories_page.dart';
 
 class MainTabPage extends StatefulWidget {
@@ -15,7 +17,11 @@ class MainTabPage extends StatefulWidget {
 class _MainTabPageState extends State<MainTabPage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [AlbumFeedPage(), StoriesPage()];
+  final List<Widget> _pages = const [
+    AlbumFeedPage(),
+    PhotosPage(),
+    StoriesPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +69,12 @@ class _MainTabPageState extends State<MainTabPage> {
                   ),
                   _buildNavItem(
                     1,
+                    Icons.grid_view_outlined,
+                    Icons.grid_view_rounded,
+                    '图片',
+                  ),
+                  _buildNavItem(
+                    2,
                     Icons.auto_stories_outlined,
                     Icons.auto_stories,
                     '故事',

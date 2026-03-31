@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class LlmResponseParser {
   const LlmResponseParser._();
 
@@ -86,5 +88,40 @@ class LlmResponseParser {
       return result.isEmpty ? null : result;
     }
     return null;
+  }
+
+  static Map<int, String> parsePhotoCaptionJson(String text) {
+    final cleaned = text
+        .replaceAll('```json', '')
+        .replaceAll('```JSON', '')
+        .replaceAll('```', '')
+        .trim();
+
+    final start = cleaned.indexOf('[');
+    final end = cleaned.lastIndexOf(']');
+    if (start < 0 || end <= start) {
+      return {};
+    }
+
+    final jsonStr = cleaned.substring(start, end + 1);
+    try {
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is! List) return {};
+      final result = <int, String>{};
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final photoId = item['photoId'];
+        final caption = item['caption'];
+        if (photoId is! int) continue;
+        if (caption is! String) continue;
+        final trimmed = caption.trim();
+        if (trimmed.isEmpty) continue;
+        if (trimmed.length > 60) continue;
+        result[photoId] = trimmed;
+      }
+      return result;
+    } catch (_) {
+      return {};
+    }
   }
 }

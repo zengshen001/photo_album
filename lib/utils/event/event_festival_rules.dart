@@ -1,8 +1,15 @@
 import '../../models/entity/photo_entity.dart';
 import 'event_cluster_city_rules.dart';
 
+/// 节日合并策略。
+///
+/// - preferMerge：同节日更倾向合并（只要满足通用条件即可）
+/// - strictSplit：跨节日边界时倾向强制切分（避免两个节日被合在一个事件里）
 enum FestivalMergePolicy { preferMerge, strictSplit }
 
+/// 单条节日规则。
+///
+/// 节日判断按“自然日”进行（忽略具体时分秒），并提供优先级与合并策略配置。
 class FestivalRule {
   final String name;
   final DateTime startDate;
@@ -26,6 +33,11 @@ class FestivalRule {
   }
 }
 
+/// 一个照片簇的“节日匹配结果”。
+///
+/// 匹配由 [EventFestivalRules.matchCluster] 生成，用于：
+/// - 聚类后处理：决定是否同节日合并、是否跨节日强制切分
+/// - 事件落库字段：isFestivalEvent / festivalName / festivalScore
 class FestivalMatchResult {
   final bool isFestivalEvent;
   final String? festivalName;
@@ -47,11 +59,24 @@ class FestivalMatchResult {
   );
 }
 
+/// 节日规则引擎。
+///
+/// 核心职责：
+/// 1) 对一个簇打节日标签（matchCluster）
+/// 2) 判断一个簇是否需要在节日边界处强制切分（shouldForceSplitCluster）
+/// 3) 提供“某天属于哪个节日规则”的解析能力（resolveFestivalRule / rulesForYear）
 class EventFestivalRules {
   const EventFestivalRules._();
 
-  static const String builtInVersion = 'cn_builtin_2024_2030_v1';
+  /// 内置节日规则表版本号（用于日志/配置可观测性）。
+  static const String builtInVersion = 'cn_builtin_2024_2030_v2';
 
+  /// 判断一个簇是否为“节日事件”。
+  ///
+  /// 计算方法：
+  /// - 遍历簇内每张照片的日期，统计命中每条节日规则的次数
+  /// - 取命中次数最多且优先级最高的规则作为候选
+  /// - 若候选命中比例 < 0.5，则认为不是节日事件
   static FestivalMatchResult matchCluster(List<PhotoEntity> cluster) {
     if (cluster.isEmpty) {
       return FestivalMatchResult.none;
@@ -94,6 +119,12 @@ class EventFestivalRules {
     );
   }
 
+  /// 判断一个簇是否需要“按节日边界强制切分”。
+  ///
+  /// 典型场景：一个簇跨越不同节日，且其中至少一个节日规则标记为 strictSplit，
+  /// 那么为了避免“节日事件被混到一起”，在节日切换点切分簇。
+  ///
+  /// 额外条件：如果跨城，会更倾向切分（由 [EventClusterCityRules.isCrossCity] 辅助判断）。
   static bool shouldForceSplitCluster({
     required List<PhotoEntity> cluster,
     required double fallbackSameCityDistanceKm,
@@ -122,6 +153,7 @@ class EventFestivalRules {
     );
   }
 
+  /// 解析某一天属于哪条节日规则（按自然日匹配）。
   static FestivalRule? resolveFestivalRule(DateTime date) {
     for (final rule in rulesForYear(date.year)) {
       if (rule.contains(date)) {
@@ -131,17 +163,27 @@ class EventFestivalRules {
     return null;
   }
 
+  /// 获取某年的规则表。
+  ///
+  /// - 内置年份：直接返回预置列表
+  /// - 非内置年份：返回简化兜底规则（保证基本可用）
   static List<FestivalRule> rulesForYear(int year) {
-    return _rulesByYear[year] ?? _buildFallbackRules(year);
+    final yearRules = _rulesByYear[year];
+    final combined = yearRules == null
+        ? _buildFallbackRules(year)
+        : [...yearRules, ..._buildFixedSolarRules(year)];
+    return _sortByPriorityDesc(combined);
   }
 
+  /// 单张照片匹配节日规则（内部工具）。
   static FestivalRule? _matchPhoto(PhotoEntity photo) {
     final date = DateTime.fromMillisecondsSinceEpoch(photo.timestamp);
     return resolveFestivalRule(date);
   }
 
+  /// 当年份未在内置表中时提供最小可用兜底规则（内部工具）。
   static List<FestivalRule> _buildFallbackRules(int year) {
-    return [
+    return _sortByPriorityDesc([
       FestivalRule(
         name: '清明',
         startDate: DateTime(year, 4, 4),
@@ -155,7 +197,76 @@ class EventFestivalRules {
         endDate: DateTime(year, 10, 7),
         priority: 90,
       ),
+      ..._buildFixedSolarRules(year),
+    ]);
+  }
+
+  /// 生成“每年固定日期”的节日规则（公历）。
+  ///
+  /// 这些节日不依赖农历，因此不需要按 year 写死，只要按同样的月/日生成即可。
+  static List<FestivalRule> _buildFixedSolarRules(int year) {
+    return [
+      FestivalRule(
+        name: '元旦',
+        startDate: DateTime(year, 1, 1),
+        endDate: DateTime(year, 1, 1),
+        priority: 55,
+      ),
+      FestivalRule(
+        name: '情人节',
+        startDate: DateTime(year, 2, 14),
+        endDate: DateTime(year, 2, 14),
+        priority: 35,
+      ),
+      FestivalRule(
+        name: '妇女节',
+        startDate: DateTime(year, 3, 8),
+        endDate: DateTime(year, 3, 8),
+        priority: 30,
+      ),
+      FestivalRule(
+        name: '愚人节',
+        startDate: DateTime(year, 4, 1),
+        endDate: DateTime(year, 4, 1),
+        priority: 15,
+      ),
+      FestivalRule(
+        name: '劳动节',
+        startDate: DateTime(year, 5, 1),
+        endDate: DateTime(year, 5, 3),
+        priority: 75,
+      ),
+      FestivalRule(
+        name: '儿童节',
+        startDate: DateTime(year, 6, 1),
+        endDate: DateTime(year, 6, 1),
+        priority: 28,
+      ),
+      FestivalRule(
+        name: '万圣节',
+        startDate: DateTime(year, 10, 31),
+        endDate: DateTime(year, 10, 31),
+        priority: 30,
+      ),
+      FestivalRule(
+        name: '圣诞节',
+        startDate: DateTime(year, 12, 24),
+        endDate: DateTime(year, 12, 26),
+        priority: 40,
+      ),
+      FestivalRule(
+        name: '跨年夜',
+        startDate: DateTime(year, 12, 31),
+        endDate: DateTime(year, 12, 31),
+        priority: 45,
+      ),
     ];
+  }
+
+  static List<FestivalRule> _sortByPriorityDesc(List<FestivalRule> rules) {
+    final list = List<FestivalRule>.from(rules);
+    list.sort((a, b) => b.priority.compareTo(a.priority));
+    return list;
   }
 
   static final Map<int, List<FestivalRule>> _rulesByYear = {

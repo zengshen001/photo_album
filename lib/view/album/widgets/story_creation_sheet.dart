@@ -10,6 +10,7 @@ import '../../../service/photo/photo_service.dart';
 import '../../../service/story/story_service.dart';
 import '../../widgets/ai_backdrop.dart';
 import '../../story/story_editor_page.dart';
+import '../../story/story_templates_page.dart';
 
 class StoryCreationSheet extends StatefulWidget {
   final Event event;
@@ -28,6 +29,7 @@ class StoryCreationSheet extends StatefulWidget {
 class _StoryCreationSheetState extends State<StoryCreationSheet> {
   final _controller = TextEditingController();
   bool _isGenerating = false;
+  int? _selectedTemplateId;
 
   void _generateStory({StoryThemeSelection? themeSelection}) async {
     final text = _controller.text.trim();
@@ -62,6 +64,7 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
         selectedPhotos: photoEntities,
         selection: selection,
         length: StoryLength.medium,
+        templateId: _selectedTemplateId,
       );
 
       if (!mounted) return;
@@ -183,8 +186,9 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                           onPressed: () {
                             _controller.text = theme.title;
                             _generateStory(
-                              themeSelection:
-                                  StoryThemeSelection.fromAITheme(theme),
+                              themeSelection: StoryThemeSelection.fromAITheme(
+                                theme,
+                              ),
                             );
                           },
                         );
@@ -205,13 +209,11 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: Color(0xFFD8E6FF)),
+                        borderSide: const BorderSide(color: Color(0xFFD8E6FF)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: Color(0xFFD8E6FF)),
+                        borderSide: const BorderSide(color: Color(0xFFD8E6FF)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -224,6 +226,32 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                     maxLines: 1,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _generateStory(),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StoryTemplatesPage(),
+                        ),
+                      );
+                      if (result is int) {
+                        setState(() {
+                          _selectedTemplateId = result;
+                        });
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      _selectedTemplateId != null ? '已选择模版' : '选择故事模版',
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   FilledButton(

@@ -46,6 +46,9 @@ class PhotoEntity {
   // 😊 情感分析 (AI 增强)
   double? joyScore; // 欢乐值评分 (0.0 - 1.0)，综合人脸微笑度和场景标签
 
+  String? caption;
+  int? captionUpdatedAt;
+
   // 🔗 事件关联 (快速查找所属事件)
   @Index()
   int? eventId; // 所属事件的 ID，用于增量更新

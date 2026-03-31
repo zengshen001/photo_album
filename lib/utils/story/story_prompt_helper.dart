@@ -18,6 +18,7 @@ class StoryPromptHelper {
     required List<String> photoDescriptions,
     required bool isShort,
     required String locationMode,
+    int? templateId,
   }) {
     return StoryPromptTemplate.buildStoryPrompt(
       selection: selection,
@@ -25,6 +26,7 @@ class StoryPromptHelper {
       photoDescriptions: photoDescriptions,
       isShort: isShort,
       locationMode: locationMode,
+      templateId: templateId,
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -25,6 +26,7 @@ class PhotoService {
     _isar = await Isar.open(
       [PhotoEntitySchema, EventEntitySchema, StoryEntitySchema], // 注册所有实体
       directory: dir.path,
+      inspector: kDebugMode,
     );
   }
 

@@ -57,6 +57,9 @@ CLAUDE.md
 AGENTS.md
 opencode.json
 CLAUDE.md
+.opencode/
+.trae/
+.coco/
 
 # test
 /imgs/
