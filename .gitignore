@@ -60,6 +60,8 @@ CLAUDE.md
 .opencode/
 .trae/
 .coco/
+.claude/
+openspec/
 
 # test
 /imgs/

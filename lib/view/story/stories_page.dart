@@ -7,30 +7,21 @@ import '../widgets/ai_backdrop.dart';
 import 'story_editor_page.dart';
 
 class StoriesPage extends StatefulWidget {
-  const StoriesPage({super.key});
+  final int? highlightedStoryId;
+
+  const StoriesPage({super.key, this.highlightedStoryId});
 
   @override
   State<StoriesPage> createState() => _StoriesPageState();
 }
 
 class _StoriesPageState extends State<StoriesPage> {
-  List<StoryEntity>? _stories;
-  bool _isLoading = true;
+  late final Stream<List<StoryEntity>> _storiesStream;
 
   @override
   void initState() {
     super.initState();
-    _loadStories();
-  }
-
-  Future<void> _loadStories() async {
-    final stories = await StoryService().getAllStories();
-    if (mounted) {
-      setState(() {
-        _stories = stories;
-        _isLoading = false;
-      });
-    }
+    _storiesStream = StoryService().watchStories();
   }
 
   @override
@@ -44,22 +35,39 @@ class _StoriesPageState extends State<StoriesPage> {
         title: const Text('故事集', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: AIBackdrop(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildContent(context),
+        child: StreamBuilder<List<StoryEntity>>(
+          stream: _storiesStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('加载失败: ${snapshot.error}'));
+            }
+            return _buildContent(context, snapshot.data ?? const []);
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context) {
-    final stories = _stories ?? [];
+  Widget _buildContent(BuildContext context, List<StoryEntity> stories) {
+    final highlightedStoryId = widget.highlightedStoryId;
+    if (highlightedStoryId != null) {
+      stories = List<StoryEntity>.from(stories);
+      stories.sort((a, b) {
+        if (a.id == highlightedStoryId) return -1;
+        if (b.id == highlightedStoryId) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+    }
 
     if (stories.isEmpty) {
       return _buildEmptyState(context);
     }
 
     return RefreshIndicator(
-      onRefresh: _loadStories,
+      onRefresh: () async {},
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         itemCount: stories.length,
@@ -72,6 +80,7 @@ class _StoriesPageState extends State<StoriesPage> {
 
   Widget _buildStoryCard(BuildContext context, StoryEntity story) {
     final theme = Theme.of(context);
+    final isHighlighted = widget.highlightedStoryId == story.id;
     // 尝试取出第一张照片用于封面
     final firstPhotoId = story.photoIds.isNotEmpty
         ? story.photoIds.first
@@ -82,24 +91,31 @@ class _StoriesPageState extends State<StoriesPage> {
         await Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => StoryEditorPage(story: story)),
         );
-        // 返回后刷新列表（可能有保存）
-        _loadStories();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xF7FFFFFF), Color(0xEAF6FBFF)],
+            colors: isHighlighted
+                ? const [Color(0xFFFDF7D6), Color(0xFFF7FBFF)]
+                : const [Color(0xF7FFFFFF), Color(0xEAF6FBFF)],
           ),
-          border: Border.all(color: const Color(0xFFDAE7FF)),
-          boxShadow: const [
+          border: Border.all(
+            color: isHighlighted
+                ? theme.colorScheme.secondary.withValues(alpha: 0.5)
+                : const Color(0xFFDAE7FF),
+            width: isHighlighted ? 1.4 : 1,
+          ),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x100F172A),
-              blurRadius: 20,
-              offset: Offset(0, 6),
+              color: isHighlighted
+                  ? theme.colorScheme.secondary.withValues(alpha: 0.16)
+                  : const Color(0x100F172A),
+              blurRadius: isHighlighted ? 24 : 20,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -125,18 +141,32 @@ class _StoriesPageState extends State<StoriesPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (story.subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      story.subtitle,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      if (isHighlighted) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary.withValues(
+                              alpha: 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '刚保存',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Icon(
                         Icons.photo_library_outlined,
                         size: 13,

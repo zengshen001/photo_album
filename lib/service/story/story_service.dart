@@ -1,10 +1,11 @@
 import 'package:isar/isar.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-import '../../models/entity/story_entity.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../../models/entity/story_entity.dart';
 import '../../models/vo/story_edit_block.dart';
+import '../../models/vo/story_template_context.dart';
 import '../../models/story_length.dart';
 import '../../models/story_theme_selection.dart';
 import '../../utils/story/story_prompt_helper.dart';
@@ -26,7 +27,7 @@ class StoryService {
   /// - [selectedPhotos]: 用户选中的照片列表
   /// - [selection]: 结构化主题选择
   /// - [length]: 故事篇幅（短/中）
-  /// - [templateId]: 故事模版ID（可选）
+  /// - [templateStoryId]: 作为模版的已保存故事 ID（可选）
   ///
   /// 返回: 生成的故事实体（失败返回 null）
   Future<StoryEntity?> generateStory({
@@ -34,7 +35,7 @@ class StoryService {
     required List<PhotoEntity> selectedPhotos,
     required StoryThemeSelection selection,
     required StoryLength length,
-    int? templateId,
+    int? templateStoryId,
   }) async {
     try {
       if (!_canGenerateStory(event: event, selectedPhotos: selectedPhotos)) {
@@ -47,6 +48,9 @@ class StoryService {
       // 2. 统一输入映射：排序、位置模式判定、描述构建
       final promptInput = StoryInputMapper.build(latestPhotos);
       _logPromptInput(promptInput);
+      final templateContext = templateStoryId == null
+          ? null
+          : await _loadTemplateStoryContext(templateStoryId);
 
       // 3. 调用 LLM 生成故事内容
       final content = await _generateStoryContent(
@@ -55,7 +59,7 @@ class StoryService {
         photoDescriptions: promptInput.photoDescriptions,
         length: length,
         locationMode: promptInput.locationMode,
-        templateId: templateId,
+        templateContext: templateContext,
       );
 
       if (content == null) {
@@ -63,15 +67,14 @@ class StoryService {
         return null;
       }
 
-      // 4. 持久化故事
-      final story = await _saveStory(
+      final story = _buildStoryDraft(
         title: selection.normalizedThemeTitle,
-        subtitle: selection.normalizedSubtitle,
+        subtitle: '',
         content: content,
         eventId: event.id,
         photoIds: promptInput.sortedPhotos.map((p) => p.id).toList(),
       );
-      print("✅ 故事生成成功：ID=${story.id}");
+      print("✅ 故事初稿生成成功");
       return story;
     } catch (e) {
       print("❌ 故事生成异常: $e");
@@ -101,18 +104,18 @@ class StoryService {
     print("📝 开始生成故事：${promptInput.sortedPhotos.length} 张照片");
   }
 
-  Future<StoryEntity> _saveStory({
+  StoryEntity _buildStoryDraft({
     required String title,
     required String subtitle,
     required String content,
     required int eventId,
     required List<int> photoIds,
-  }) async {
+  }) {
     final blocks = StoryEntity.parseMarkdownToBlocks(
       content: content,
       photoIds: photoIds,
     );
-    final story = StoryEntity.create(
+    return StoryEntity.create(
       title: title,
       subtitle: subtitle,
       content: content,
@@ -120,11 +123,28 @@ class StoryService {
       eventId: eventId,
       photoIds: photoIds,
     );
+  }
+
+  Future<StoryEntity> createStoryFromDraft({
+    required StoryEntity story,
+    required List<StoryEditBlock> blocks,
+  }) async {
+    final payload = buildSavePayload(blocks);
+    final created = StoryEntity.create(
+      title: story.title,
+      subtitle: story.subtitle,
+      content: payload.content,
+      contentJson: payload.contentJson,
+      eventId: story.eventId,
+      photoIds: payload.photoIds,
+    )..isLlmGenerated = story.isLlmGenerated;
+
     final isar = PhotoService().isar;
     await isar.writeTxn(() async {
-      await isar.collection<StoryEntity>().put(story);
+      await isar.collection<StoryEntity>().put(created);
     });
-    return story;
+    print("💾 故事已保存：ID=${created.id}");
+    return created;
   }
 
   Future<List<PhotoEntity>> _loadLatestPhotosForPrompt(
@@ -147,6 +167,45 @@ class StoryService {
         .toList();
   }
 
+  Future<StoryTemplateContext?> _loadTemplateStoryContext(
+    int templateStoryId,
+  ) async {
+    final isar = PhotoService().isar;
+    final story = await isar.collection<StoryEntity>().get(templateStoryId);
+    if (story == null) {
+      return null;
+    }
+
+    final relatedPhotos = story.photoIds.isEmpty
+        ? <PhotoEntity>[]
+        : await isar
+              .collection<PhotoEntity>()
+              .where()
+              .anyOf(story.photoIds, (q, id) => q.idEqualTo(id))
+              .findAll();
+
+    final photoById = {for (final photo in relatedPhotos) photo.id: photo};
+    final orderedPhotos = story.photoIds
+        .map((id) => photoById[id])
+        .whereType<PhotoEntity>()
+        .map(
+          (photo) => StoryTemplatePhotoContext(
+            photoId: photo.id,
+            tags: List<String>.from(photo.aiTags ?? const []),
+            caption: photo.caption,
+            formattedAddress: photo.formattedAddress,
+          ),
+        )
+        .toList();
+
+    return StoryTemplateContext(
+      storyId: story.id,
+      title: story.title,
+      content: story.content,
+      photos: orderedPhotos,
+    );
+  }
+
   /// 🤖 调用 LLM 生成故事内容
   Future<String?> _generateStoryContent({
     required StoryThemeSelection selection,
@@ -154,7 +213,7 @@ class StoryService {
     required List<String> photoDescriptions,
     required StoryLength length,
     required String locationMode,
-    int? templateId,
+    StoryTemplateContext? templateContext,
   }) async {
     final llmService = LLMService();
 
@@ -165,7 +224,7 @@ class StoryService {
         selection,
         photoDescriptions,
         length,
-        templateId,
+        templateContext,
       );
       print("===== STORY AI RESPONSE (MOCK) =====");
       print(mock);
@@ -181,10 +240,13 @@ class StoryService {
         photoDescriptions: photoDescriptions,
         isShort: length == StoryLength.short,
         locationMode: locationMode,
+        templateContext: templateContext,
       );
       print("===== STORY AI REQUEST =====");
       print("theme: ${selection.normalizedThemeTitle}");
-      print("subtitle: ${selection.normalizedSubtitle}");
+      if (templateContext != null) {
+        print("templateStory: ${templateContext.title}");
+      }
       print("length: ${length.name}");
       print("locationMode: $locationMode");
       print("prompt:\n$prompt");
@@ -203,7 +265,7 @@ class StoryService {
         selection,
         photoDescriptions,
         length,
-        templateId,
+        templateContext,
       );
     }
   }
@@ -213,12 +275,13 @@ class StoryService {
     StoryThemeSelection selection,
     List<String> photoDescriptions,
     StoryLength length,
-    int? templateId,
+    StoryTemplateContext? templateContext,
   ) async {
     return StoryPromptHelper.generateMockStoryContent(
       selection: selection,
       photoDescriptions: photoDescriptions,
       isShort: length == StoryLength.short,
+      templateTitle: templateContext?.title,
     );
   }
 
@@ -230,6 +293,19 @@ class StoryService {
         .where()
         .sortByCreatedAtDesc()
         .findAll();
+  }
+
+  Stream<List<StoryEntity>> watchStories() {
+    final isar = PhotoService().isar;
+    return isar
+        .collection<StoryEntity>()
+        .where()
+        .watch(fireImmediately: true)
+        .map((stories) {
+          final sorted = List<StoryEntity>.from(stories)
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return sorted;
+        });
   }
 
   /// 🔍 根据事件 ID 获取故事
@@ -275,6 +351,7 @@ class StoryService {
 
     try {
       final hasNoContentChange =
+          story.title.trim() == snapshot.title &&
           payload.content == story.content &&
           payload.contentJson == (story.contentJson ?? '') &&
           _listEquals(payload.photoIds, story.photoIds);
@@ -285,6 +362,7 @@ class StoryService {
 
       story.contentJson = payload.contentJson;
       story.content = payload.content;
+      story.title = story.title.trim();
       story.photoIds = payload.photoIds;
       story.photoCount = payload.photoIds.length;
       story.updatedAt = DateTime.now().millisecondsSinceEpoch;
@@ -302,6 +380,20 @@ class StoryService {
     }
   }
 
+  Future<bool> deleteStory(Id storyId) async {
+    final isar = PhotoService().isar;
+    try {
+      await isar.writeTxn(() async {
+        await isar.collection<StoryEntity>().delete(storyId);
+      });
+      print("🗑️ 故事已删除：ID=$storyId");
+      return true;
+    } catch (e) {
+      print("❌ 故事删除失败：$e");
+      return false;
+    }
+  }
+
   bool _listEquals(List<int> left, List<int> right) {
     if (left.length != right.length) {
       return false;
@@ -311,16 +403,6 @@ class StoryService {
         return false;
       }
     }
-    return true;
-  }
-
-  /// 🗑️ 删除故事
-  Future<bool> deleteStory(int storyId) async {
-    final isar = PhotoService().isar;
-    await isar.writeTxn(() async {
-      await isar.collection<StoryEntity>().delete(storyId);
-    });
-    print("🗑️ 故事已删除：ID=$storyId");
     return true;
   }
 
@@ -368,6 +450,7 @@ class StorySavePayload {
 
 class StorySnapshot {
   const StorySnapshot({
+    required this.title,
     required this.content,
     required this.contentJson,
     required this.photoIds,
@@ -375,6 +458,7 @@ class StorySnapshot {
     required this.updatedAt,
   });
 
+  final String title;
   final String content;
   final String? contentJson;
   final List<int> photoIds;
@@ -383,6 +467,7 @@ class StorySnapshot {
 
   factory StorySnapshot.capture(StoryEntity story) {
     return StorySnapshot(
+      title: story.title,
       content: story.content,
       contentJson: story.contentJson,
       photoIds: List<int>.from(story.photoIds),
@@ -392,6 +477,7 @@ class StorySnapshot {
   }
 
   void restore(StoryEntity story) {
+    story.title = title;
     story.content = content;
     story.contentJson = contentJson;
     story.photoIds = List<int>.from(photoIds);

@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
 import '../widgets/ai_backdrop.dart';
+import '../../widgets/lazy_load_image.dart';
 import 'widgets/story_creation_sheet.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -123,9 +123,13 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   children: [
                     Hero(
                       tag: 'event_cover_${widget.event.id}',
-                      child: Image.file(
-                        File(coverPhoto.path),
+                      child: LazyLoadImage(
+                        path: coverPhoto.path,
                         fit: BoxFit.cover,
+                        loadImmediately: true,
+                        useThumbnail: false,
+                        thumbnailWidth: 800,
+                        thumbnailHeight: 600,
                       ),
                     ),
                     Positioned(
@@ -203,7 +207,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.file(File(photo.path), fit: BoxFit.cover),
+                          LazyLoadImage(
+                            path: photo.path,
+                            fit: BoxFit.cover,
+                            thumbnailWidth: 300,
+                            thumbnailHeight: 300,
+                          ),
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
                             color: isSelected

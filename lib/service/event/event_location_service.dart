@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../photo/photo_service.dart';
 
 class EventLocationService {
   static const int _eventLocationResolveBatchSize = 10;
@@ -104,6 +105,11 @@ class EventLocationService {
 
       print("🌏 开始逐图解析地址，本批次: ${photos.length} 张");
       for (final photo in photos) {
+        if (_hasSavedPhotoLocation(photo)) {
+          await _markPhotoLocationProcessed(isar: isar, photoId: photo.id);
+          continue;
+        }
+
         final eventPhotoCount = eventPhotoCountById[photo.eventId];
         if (eventPhotoCount == null ||
             !shouldResolvePhotoLocation(
@@ -203,6 +209,33 @@ class EventLocationService {
     return events.where((event) => onlyEventIds.contains(event.id)).toList();
   }
 
+  bool _hasSavedPhotoLocation(PhotoEntity photo) {
+    return (photo.formattedAddress?.isNotEmpty ?? false) ||
+        (photo.city?.isNotEmpty ?? false) ||
+        (photo.province?.isNotEmpty ?? false) ||
+        (photo.district?.isNotEmpty ?? false) ||
+        (photo.adcode?.isNotEmpty ?? false);
+  }
+
+  Future<void> _markPhotoLocationProcessed({
+    required Isar isar,
+    required Id photoId,
+  }) async {
+    var didUpdate = false;
+    await isar.writeTxn(() async {
+      final latest = await isar.collection<PhotoEntity>().get(photoId);
+      if (latest == null || latest.isLocationProcessed) {
+        return;
+      }
+      latest.isLocationProcessed = true;
+      await isar.collection<PhotoEntity>().put(latest);
+      didUpdate = true;
+    });
+    if (didUpdate) {
+      PhotoService().markLocalDataChanged();
+    }
+  }
+
   Future<List<PhotoEntity>> _queryPhotosForLocationResolve({
     required Isar isar,
     required List<int> eventIds,
@@ -245,6 +278,7 @@ class EventLocationService {
       city ??= district;
       city ??= province;
 
+      var didUpdate = false;
       await isar.writeTxn(() async {
         final latest = await isar.collection<PhotoEntity>().get(photo.id);
         if (latest == null) return;
@@ -255,7 +289,11 @@ class EventLocationService {
         latest.formattedAddress = formattedAddress;
         latest.isLocationProcessed = true;
         await isar.collection<PhotoEntity>().put(latest);
+        didUpdate = true;
       });
+      if (didUpdate) {
+        PhotoService().markLocalDataChanged();
+      }
 
       print(
         "📌 照片地址解析成功: id=${photo.id} city=${city ?? '-'} district=${district ?? '-'}",

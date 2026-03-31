@@ -8,30 +8,42 @@ import 'photo/photos_page.dart';
 import 'story/stories_page.dart';
 
 class MainTabPage extends StatefulWidget {
-  const MainTabPage({super.key});
+  final int initialIndex;
+  final int? highlightedStoryId;
+
+  const MainTabPage({
+    super.key,
+    this.initialIndex = 0,
+    this.highlightedStoryId,
+  });
 
   @override
   State<MainTabPage> createState() => _MainTabPageState();
 }
 
 class _MainTabPageState extends State<MainTabPage> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
-  final List<Widget> _pages = const [
-    AlbumFeedPage(),
-    PhotosPage(),
-    StoriesPage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pages = [
+      const AlbumFeedPage(),
+      const PhotosPage(),
+      StoriesPage(highlightedStoryId: widget.highlightedStoryId),
+    ];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBody: true,
       body: AIBackdrop(
-        child: IndexedStack(index: _currentIndex, children: _pages),
+        child: IndexedStack(index: _currentIndex, children: pages),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(

@@ -12,6 +12,7 @@ import 'photo_scan_context.dart';
 
 class PhotoService {
   late Isar _isar;
+  final ValueNotifier<int> _localDataVersion = ValueNotifier<int>(0);
 
   static final PhotoService _instance = PhotoService._internal();
   factory PhotoService() => _instance;
@@ -20,6 +21,11 @@ class PhotoService {
 
   // 暴露 isar 实例供其他服务使用
   Isar get isar => _isar;
+  ValueListenable<int> get localDataVersion => _localDataVersion;
+
+  void markLocalDataChanged() {
+    _localDataVersion.value++;
+  }
 
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -37,7 +43,9 @@ class PhotoService {
       await _isar.collection<PhotoEntity>().clear();
     });
 
-    print("🗑️ 已清空 Isar 缓存数据（照片/事件/故事）");
+    markLocalDataChanged();
+
+    print("🗑️ 已清空全部本地 Isar 数据（照片/事件/故事）");
   }
 
   // 1️⃣ 扫描相册 (分页入库，带截图过滤)
@@ -130,6 +138,7 @@ class PhotoService {
     }
 
     // AI 分析由上层流程在聚类后触发，确保 eventId 已建立
+    markLocalDataChanged();
     return PhotoScanSummary(
       totalBefore: totalBefore,
       totalAfter: totalAfter,

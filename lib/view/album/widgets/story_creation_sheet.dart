@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:isar/isar.dart';
+
 import '../../../models/entity/event_entity.dart';
 import '../../../models/entity/photo_entity.dart';
+import '../../../models/entity/story_entity.dart';
 import '../../../models/event.dart';
 import '../../../models/story_length.dart';
 import '../../../models/story_theme_selection.dart';
@@ -29,7 +31,52 @@ class StoryCreationSheet extends StatefulWidget {
 class _StoryCreationSheetState extends State<StoryCreationSheet> {
   final _controller = TextEditingController();
   bool _isGenerating = false;
-  int? _selectedTemplateId;
+  int? _selectedTemplateStoryId;
+  String? _selectedTemplateTitle;
+
+  Future<void> _openCustomTitleDialog() async {
+    final draftController = TextEditingController(
+      text: _controller.text.trim(),
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('自定义标题'),
+          content: TextField(
+            controller: draftController,
+            autofocus: true,
+            maxLines: 1,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(hintText: '输入你的故事标题'),
+            onSubmitted: (value) {
+              Navigator.of(context).pop(value.trim());
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(draftController.text.trim());
+              },
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || result == null || result.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _controller.text = result;
+    });
+  }
 
   void _generateStory({StoryThemeSelection? themeSelection}) async {
     final text = _controller.text.trim();
@@ -55,7 +102,7 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
           themeSelection ??
           StoryThemeSelection(
             themeTitle: text,
-            subtitle: '一段值得回味的故事',
+            subtitle: '',
             source: StoryThemeSource.custom,
           );
 
@@ -64,7 +111,7 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
         selectedPhotos: photoEntities,
         selection: selection,
         length: StoryLength.medium,
-        templateId: _selectedTemplateId,
+        templateStoryId: _selectedTemplateStoryId,
       );
 
       if (!mounted) return;
@@ -72,7 +119,11 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
       if (storyEntity != null) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => StoryEditorPage(story: storyEntity),
+            builder: (_) => StoryEditorPage(
+              story: storyEntity,
+              returnToStoriesOnSave: true,
+              isPersisted: false,
+            ),
           ),
         );
       } else {
@@ -143,12 +194,75 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       children: [
-                        Text(
-                          '为故事命名',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        InkWell(
+                          onTap: _openCustomTitleDialog,
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.72),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFD8E6FF),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary.withValues(
+                                      alpha: 0.10,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.edit_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _controller.text.trim().isEmpty
+                                            ? '创建你的故事标题'
+                                            : _controller.text.trim(),
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _controller.text.trim().isEmpty
+                                            ? '点击这里，自定义一个标题'
+                                            : '点击这里，重新编辑标题',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: const Color(0xFF64748B),
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ],
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -196,38 +310,6 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: _controller,
-                    autofocus: widget.event.aiThemes.isEmpty,
-                    decoration: InputDecoration(
-                      hintText: '或者在这里自定义主题...',
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFD8E6FF)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFD8E6FF)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                    maxLines: 1,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _generateStory(),
-                  ),
-                  const SizedBox(height: 16),
                   OutlinedButton(
                     onPressed: () async {
                       final result = await Navigator.push(
@@ -236,9 +318,10 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                           builder: (context) => const StoryTemplatesPage(),
                         ),
                       );
-                      if (result is int) {
+                      if (result is StoryEntity) {
                         setState(() {
-                          _selectedTemplateId = result;
+                          _selectedTemplateStoryId = result.id;
+                          _selectedTemplateTitle = result.title;
                         });
                       }
                     },
@@ -249,7 +332,9 @@ class _StoryCreationSheetState extends State<StoryCreationSheet> {
                       ),
                     ),
                     child: Text(
-                      _selectedTemplateId != null ? '已选择模版' : '选择故事模版',
+                      _selectedTemplateStoryId != null
+                          ? '已选模板故事：${_selectedTemplateTitle ?? '已保存故事'}'
+                          : '选择已保存故事作为模板',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),

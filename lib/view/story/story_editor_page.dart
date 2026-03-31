@@ -4,34 +4,55 @@ import '../../models/entity/photo_entity.dart';
 import '../../models/entity/story_entity.dart';
 import '../../models/vo/story_edit_block.dart';
 import '../../service/story/story_service.dart';
+import '../main_tab_page.dart';
 import '../widgets/ai_backdrop.dart';
 
 class StoryEditorPage extends StatefulWidget {
   final StoryEntity story;
+  final bool returnToStoriesOnSave;
+  final bool isPersisted;
 
-  const StoryEditorPage({super.key, required this.story});
+  const StoryEditorPage({
+    super.key,
+    required this.story,
+    this.returnToStoriesOnSave = false,
+    this.isPersisted = true,
+  });
 
   @override
   State<StoryEditorPage> createState() => _StoryEditorPageState();
 }
 
 class _StoryEditorPageState extends State<StoryEditorPage> {
+  late StoryEntity _story;
   late List<StoryEditBlock> _blocks;
+  late TextEditingController _titleController;
   Map<int, PhotoEntity> _photoMap = {};
   bool _isLoadingPhotos = true;
   bool _isSaving = false;
   bool _isEditing = false;
   bool _hasUnsavedChanges = false;
+  late bool _isPersisted;
 
   @override
   void initState() {
     super.initState();
-    _blocks = widget.story.resolveEditBlocks();
+    _story = widget.story;
+    _isPersisted = widget.isPersisted;
+    _titleController = TextEditingController(text: _story.title);
+    _blocks = _story.resolveEditBlocks();
+    _hasUnsavedChanges = !_isPersisted;
     _loadPhotos();
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadPhotos() async {
-    final photoIds = widget.story.photoIds;
+    final photoIds = _story.photoIds;
     if (photoIds.isNotEmpty) {
       final photos = await StoryService().loadPhotos(photoIds);
       setState(() {
@@ -60,6 +81,17 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
   void _updateBlockText(int index, String text) {
     _blocks[index] = _blocks[index].copyWith(text: text);
     _hasUnsavedChanges = true;
+  }
+
+  void _updateTitle(String value) {
+    final nextTitle = value.trim();
+    if (nextTitle == _story.title) {
+      return;
+    }
+    setState(() {
+      _story.title = nextTitle;
+      _hasUnsavedChanges = true;
+    });
   }
 
   /// 在指定位置后面插入一个新的纯文字块
@@ -93,51 +125,137 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
     });
   }
 
-  Future<void> _saveStory() async {
+  Future<bool> _saveStory() async {
+    final nextTitle = _titleController.text.trim();
+    if (nextTitle.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('标题不能为空')));
+      return false;
+    }
+
+    _story.title = nextTitle;
     setState(() => _isSaving = true);
-    final success = await StoryService().updateStoryDraft(
-      story: widget.story,
-      blocks: _blocks,
-    );
-    if (!mounted) return;
+    final storyService = StoryService();
+    final success = _isPersisted
+        ? await storyService.updateStoryDraft(story: _story, blocks: _blocks)
+        : await (() async {
+            final savedStory = await storyService.createStoryFromDraft(
+              story: _story,
+              blocks: _blocks,
+            );
+            _story = savedStory;
+            _isPersisted = true;
+            return true;
+          })();
+    if (!mounted) return success;
     setState(() {
       _isSaving = false;
       if (success) _hasUnsavedChanges = false;
     });
     if (success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('故事已保存')));
+      if (widget.returnToStoriesOnSave) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) =>
+                MainTabPage(initialIndex: 2, highlightedStoryId: _story.id),
+          ),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('故事已保存')));
+      }
     } else {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('保存失败，请重试')));
     }
+    return success;
+  }
+
+  Future<void> _deleteStory() async {
+    if (!_isPersisted) {
+      if (!mounted) return;
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除故事'),
+        content: const Text('删除后无法恢复，确定要删除这篇故事吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) {
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final success = await StoryService().deleteStory(_story.id);
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('故事已删除')));
+      Navigator.of(context).pop();
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('删除失败，请重试')));
   }
 
   Future<bool> _onWillPop() async {
     if (!_hasUnsavedChanges) return true;
-    final result = await showDialog<bool>(
+    final result = await showDialog<bool?>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('有未保存的更改'),
         content: const Text('是否保存后离开？'),
         actions: [
           TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('取消'),
+          ),
+          TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('不保存'),
           ),
           FilledButton(
-            onPressed: () async {
-              Navigator.of(context).pop(true);
-              await _saveStory();
-            },
+            onPressed: () => Navigator.of(context).pop(true),
             child: const Text('保存'),
           ),
         ],
       ),
     );
-    return result ?? false;
+    if (result == null) {
+      return false;
+    }
+    if (!result) {
+      return true;
+    }
+    final success = await _saveStory();
+    if (!success) {
+      return false;
+    }
+    return !widget.returnToStoriesOnSave;
   }
 
   @override
@@ -165,7 +283,7 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _isEditing ? '编辑故事' : widget.story.title,
+                  _isEditing ? '编辑故事' : _story.title,
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -173,17 +291,6 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (!_isEditing && widget.story.subtitle.isNotEmpty)
-                  Text(
-                    widget.story.subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black.withValues(alpha: 0.45),
-                      fontWeight: FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
               ],
             ),
             actions: [
@@ -199,18 +306,24 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
                   ),
                 )
               else ...[
-                // 有改动时始终显示保存按钮
-                if (_hasUnsavedChanges)
-                  TextButton(
-                    onPressed: _saveStory,
-                    child: const Text(
-                      '保存',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                if (_isPersisted)
+                  IconButton(
+                    onPressed: _deleteStory,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                  ),
+                TextButton(
+                  onPressed: _saveStory,
+                  child: Text(
+                    (!_isPersisted || _hasUnsavedChanges) ? '保存' : '已保存',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: (!_isPersisted || _hasUnsavedChanges)
+                          ? null
+                          : Theme.of(context).colorScheme.primary,
                     ),
                   ),
+                ),
                 IconButton(
                   icon: Icon(_isEditing ? Icons.visibility : Icons.edit),
                   onPressed: () {
@@ -226,25 +339,70 @@ class _StoryEditorPageState extends State<StoryEditorPage> {
                   children: [
                     Expanded(
                       child: _isEditing
-                          ? ReorderableListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ).copyWith(bottom: 40),
-                              itemCount: _blocks.length,
-                              onReorder: _onReorder,
-                              itemBuilder: (context, index) {
-                                final block = _blocks[index];
-                                return _buildEditBlockItem(block, index, theme);
-                              },
-                              proxyDecorator: (child, index, animation) {
-                                return Material(
-                                  elevation: 8,
-                                  color: Colors.transparent,
-                                  shadowColor: Colors.black26,
-                                  child: child,
-                                );
-                              },
+                          ? Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    12,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.92,
+                                      ),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: const Color(0xFFDCE8FF),
+                                      ),
+                                    ),
+                                    child: TextFormField(
+                                      controller: _titleController,
+                                      onChanged: _updateTitle,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: '输入故事标题',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: ReorderableListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ).copyWith(bottom: 40),
+                                    itemCount: _blocks.length,
+                                    onReorder: _onReorder,
+                                    itemBuilder: (context, index) {
+                                      final block = _blocks[index];
+                                      return _buildEditBlockItem(
+                                        block,
+                                        index,
+                                        theme,
+                                      );
+                                    },
+                                    proxyDecorator: (child, index, animation) {
+                                      return Material(
+                                        elevation: 8,
+                                        color: Colors.transparent,
+                                        shadowColor: Colors.black26,
+                                        child: child,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.symmetric(

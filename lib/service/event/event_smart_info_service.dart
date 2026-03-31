@@ -4,6 +4,7 @@ import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
 import '../../utils/event/smart_title_generator.dart';
 import '../ai/llm_service.dart';
+import '../photo/photo_service.dart';
 
 class EventSmartInfoService {
   final int minPhotosForDisplay;
@@ -123,6 +124,7 @@ class EventSmartInfoService {
         continue;
       }
 
+      var didUpdate = false;
       await isar.writeTxn(() async {
         for (final photo in chunk) {
           final caption = captions[photo.id];
@@ -132,8 +134,12 @@ class EventSmartInfoService {
           photo.caption = caption.trim();
           photo.captionUpdatedAt = now;
           await isar.collection<PhotoEntity>().put(photo);
+          didUpdate = true;
         }
       });
+      if (didUpdate) {
+        PhotoService().markLocalDataChanged();
+      }
     }
   }
 

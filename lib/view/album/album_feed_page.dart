@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
 import '../../service/event/event_service.dart';
 import '../../service/photo/photo_service.dart';
 import '../widgets/ai_backdrop.dart';
+import '../../widgets/lazy_load_image.dart';
 import 'event_detail_page.dart';
 
 class AlbumFeedPage extends StatefulWidget {
@@ -117,7 +117,7 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清空所有数据'),
-        content: const Text('确定要删除数据库中的所有相册、事件和故事吗？此操作无法撤销。'),
+        content: const Text('确定要删除所有本地数据吗？这会清空当前 Isar 中的照片、事件、故事等全部数据，且无法撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -137,7 +137,7 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('数据已清空')));
+        ).showSnackBar(const SnackBar(content: Text('所有本地数据已清空')));
       }
     }
   }
@@ -206,11 +206,12 @@ class _EventFeedCard extends StatelessWidget {
               // Hero Cover
               Hero(
                 tag: 'event_cover_${event.id}',
-                child: Image.file(
-                  File(coverPhoto.path),
+                child: LazyLoadImage(
+                  path: coverPhoto.path,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const ColoredBox(color: Color(0xFFE5E5EA)),
+                  errorWidget: const ColoredBox(color: Color(0xFFE5E5EA)),
+                  thumbnailWidth: 600,
+                  thumbnailHeight: 400,
                 ),
               ),
               Positioned(

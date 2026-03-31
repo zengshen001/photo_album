@@ -47,55 +47,55 @@ class AIService {
 
     var totalAnalyzed = 0;
     final affectedEventIds = <int>{};
-
-    while (true) {
-      final photos = await _loadPendingPhotos(
-        isar: isar,
-        eligibleEventIds: eligibleEventIds,
-        batchSize: batchSize,
-      );
-
-      if (photos.isEmpty) {
-        break;
-      }
-
-      log('开始 AI 视觉分析，本批次: ${photos.length} 张', name: 'AIService');
-
-      for (final photo in photos) {
-        final result = await _analyzeSinglePhoto(
-          photo: photo,
-          imageLabeler: imageLabeler,
-          faceDetector: faceDetector,
+    try {
+      while (true) {
+        final photos = await _loadPendingPhotos(
           isar: isar,
+          eligibleEventIds: eligibleEventIds,
+          batchSize: batchSize,
         );
-        _collectAffectedEventId(affectedEventIds, result.eventId);
 
-        totalAnalyzed++;
+        if (photos.isEmpty) {
+          break;
+        }
 
-        // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
-        await Future.delayed(const Duration(milliseconds: 100));
+        log('开始 AI 视觉分析，本批次: ${photos.length} 张', name: 'AIService');
+
+        for (final photo in photos) {
+          final result = await _analyzeSinglePhoto(
+            photo: photo,
+            imageLabeler: imageLabeler,
+            faceDetector: faceDetector,
+            isar: isar,
+          );
+          _collectAffectedEventId(affectedEventIds, result.eventId);
+
+          totalAnalyzed++;
+
+          // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+
+        if (affectedEventIds.isNotEmpty) {
+          await EventService().refreshEventSmartInfo(affectedEventIds.toList());
+        }
       }
 
+      // 🔔 批量通知 EventService 刷新智能信息
       if (affectedEventIds.isNotEmpty) {
+        log(
+          '通知 EventService 刷新 ${affectedEventIds.length} 个事件',
+          name: 'AIService',
+        );
         await EventService().refreshEventSmartInfo(affectedEventIds.toList());
       }
+
+      log('所有照片 AI 分析完成，总计处理: $totalAnalyzed 张', name: 'AIService');
+      return affectedEventIds;
+    } finally {
+      imageLabeler.close();
+      faceDetector.close();
     }
-
-    // 6. 关闭资源
-    imageLabeler.close();
-    faceDetector.close();
-
-    // 🔔 批量通知 EventService 刷新智能信息
-    if (affectedEventIds.isNotEmpty) {
-      log(
-        '通知 EventService 刷新 ${affectedEventIds.length} 个事件',
-        name: 'AIService',
-      );
-      await EventService().refreshEventSmartInfo(affectedEventIds.toList());
-    }
-
-    log('所有照片 AI 分析完成，总计处理: $totalAnalyzed 张', name: 'AIService');
-    return affectedEventIds;
   }
 
   Future<Set<int>> _loadEligibleEventIds(
@@ -159,7 +159,7 @@ class AIService {
       final inputImage = InputImage.fromFile(file);
       final labels = await imageLabeler.processImage(inputImage);
       final validTags = labels
-          .map((label) => AITagDictionary.zhCn[label.label] ?? label.label)
+          .map((label) => AITagDictionary.translate(label.label))
           .toList();
 
       final faces = await faceDetector.processImage(inputImage);
@@ -228,17 +228,35 @@ class AIService {
     double joyScore,
     Isar isar,
   ) async {
+    var didUpdate = false;
     await isar.writeTxn(() async {
       final p = await isar.collection<PhotoEntity>().get(id);
       if (p != null) {
+        final wasAnalyzed = p.isAiAnalyzed;
+        final eventId = p.eventId;
         p.aiTags = tags;
         p.isAiAnalyzed = true;
         p.faceCount = faceCount;
         p.smileProb = smileProb;
         p.joyScore = joyScore;
         await isar.collection<PhotoEntity>().put(p);
+        didUpdate = true;
+
+        if (!wasAnalyzed && eventId != null) {
+          final event = await isar.collection<EventEntity>().get(eventId);
+          if (event != null) {
+            event.analyzedPhotoCount =
+                event.analyzedPhotoCount + 1 > event.photoCount
+                ? event.photoCount
+                : event.analyzedPhotoCount + 1;
+            await isar.collection<EventEntity>().put(event);
+          }
+        }
       }
     });
+    if (didUpdate) {
+      PhotoService().markLocalDataChanged();
+    }
   }
 
   // 📊 工具方法：获取 AI 分析进度

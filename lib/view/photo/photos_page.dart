@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:isar/isar.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 import '../../models/entity/photo_entity.dart';
 import '../../service/photo/photo_service.dart';
@@ -19,9 +19,7 @@ class _PhotosPageState extends State<PhotosPage> {
   static const int _pageSize = 90;
 
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
-
-  Timer? _debounce;
+  final PhotoService _photoService = PhotoService();
 
   List<PhotoEntity> _photos = [];
   bool _isLoading = true;
@@ -29,7 +27,6 @@ class _PhotosPageState extends State<PhotosPage> {
   bool _hasMore = true;
   int _offset = 0;
 
-  String _keyword = '';
   Set<String> _selectedTags = {};
   DateTimeRange? _selectedRange;
 
@@ -39,15 +36,23 @@ class _PhotosPageState extends State<PhotosPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _photoService.localDataVersion.addListener(_handleLocalDataChanged);
     _loadFirstPage();
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _photoService.localDataVersion.removeListener(_handleLocalDataChanged);
     _scrollController.dispose();
-    _searchController.dispose();
     super.dispose();
+  }
+
+  void _handleLocalDataChanged() {
+    if (!mounted) {
+      return;
+    }
+    _tagStatsCache = null;
+    _loadFirstPage();
   }
 
   void _onScroll() {
@@ -68,11 +73,12 @@ class _PhotosPageState extends State<PhotosPage> {
 
     try {
       final items = await _queryPhotos(offset: 0, limit: _pageSize);
+      final hydratedItems = await _refreshPhotoPaths(items);
       if (!mounted) return;
       setState(() {
-        _photos = items;
-        _offset = items.length;
-        _hasMore = items.length == _pageSize;
+        _photos = hydratedItems;
+        _offset = hydratedItems.length;
+        _hasMore = hydratedItems.length == _pageSize;
         _isLoading = false;
       });
     } catch (e) {
@@ -88,11 +94,12 @@ class _PhotosPageState extends State<PhotosPage> {
     setState(() => _isLoadingMore = true);
     try {
       final items = await _queryPhotos(offset: _offset, limit: _pageSize);
+      final hydratedItems = await _refreshPhotoPaths(items);
       if (!mounted) return;
       setState(() {
-        _photos = [..._photos, ...items];
-        _offset += items.length;
-        _hasMore = items.length == _pageSize;
+        _photos = [..._photos, ...hydratedItems];
+        _offset += hydratedItems.length;
+        _hasMore = hydratedItems.length == _pageSize;
         _isLoadingMore = false;
       });
     } catch (e) {
@@ -108,7 +115,7 @@ class _PhotosPageState extends State<PhotosPage> {
     required int offset,
     required int limit,
   }) async {
-    final isar = PhotoService().isar;
+    final isar = _photoService.isar;
 
     var query = isar.collection<PhotoEntity>().filter().idGreaterThan(
       0,
@@ -134,11 +141,6 @@ class _PhotosPageState extends State<PhotosPage> {
       query = query.timestampBetween(start, end);
     }
 
-    final keyword = _keyword.trim();
-    if (keyword.isNotEmpty) {
-      query = query.aiTagsElementContains(keyword, caseSensitive: false);
-    }
-
     if (_selectedTags.isNotEmpty) {
       final tags = _selectedTags.toList()..sort();
       query = query.group((q) {
@@ -153,20 +155,46 @@ class _PhotosPageState extends State<PhotosPage> {
     return query.sortByTimestampDesc().offset(offset).limit(limit).findAll();
   }
 
-  void _onKeywordChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
-      if (!mounted) return;
-      setState(() => _keyword = value);
-      _loadFirstPage();
-    });
+  Future<List<PhotoEntity>> _refreshPhotoPaths(List<PhotoEntity> photos) async {
+    if (photos.isEmpty) {
+      return photos;
+    }
+
+    final isar = _photoService.isar;
+    final changed = <PhotoEntity>[];
+
+    for (final photo in photos) {
+      if (photo.path.isNotEmpty && File(photo.path).existsSync()) {
+        continue;
+      }
+
+      final asset = await AssetEntity.fromId(photo.assetId);
+      final file = await asset?.file;
+      final latestPath = file?.path;
+      if (latestPath == null ||
+          latestPath.isEmpty ||
+          latestPath == photo.path) {
+        continue;
+      }
+
+      photo.path = latestPath;
+      changed.add(photo);
+    }
+
+    if (changed.isNotEmpty) {
+      await isar.writeTxn(() async {
+        await isar.collection<PhotoEntity>().putAll(changed);
+      });
+    }
+
+    return photos;
   }
 
   Future<List<_TagCount>> _loadTagStats() async {
     final cache = _tagStatsCache;
     if (cache != null) return cache;
 
-    final isar = PhotoService().isar;
+    final isar = _photoService.isar;
     final tagLists = await isar
         .collection<PhotoEntity>()
         .filter()
@@ -230,9 +258,7 @@ class _PhotosPageState extends State<PhotosPage> {
   }
 
   void _clearAllFilters() {
-    _searchController.clear();
     setState(() {
-      _keyword = '';
       _selectedTags = {};
       _selectedRange = null;
     });
@@ -261,25 +287,22 @@ class _PhotosPageState extends State<PhotosPage> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PhotoSearchHeaderDelegate(
-                controller: _searchController,
-                keyword: _keyword,
-                selectedTags: _selectedTags,
-                range: _selectedRange,
-                onKeywordChanged: _onKeywordChanged,
-                onClearAll: _clearAllFilters,
-                onRemoveTag: (tag) {
-                  setState(() => _selectedTags.remove(tag));
-                  _loadFirstPage();
-                },
-                onClearRange: () {
-                  setState(() => _selectedRange = null);
-                  _loadFirstPage();
-                },
+            if (_selectedTags.isNotEmpty || _selectedRange != null)
+              SliverToBoxAdapter(
+                child: _ActivePhotoFiltersBar(
+                  selectedTags: _selectedTags,
+                  range: _selectedRange,
+                  onClearAll: _clearAllFilters,
+                  onRemoveTag: (tag) {
+                    setState(() => _selectedTags.remove(tag));
+                    _loadFirstPage();
+                  },
+                  onClearRange: () {
+                    setState(() => _selectedRange = null);
+                    _loadFirstPage();
+                  },
+                ),
               ),
-            ),
             if (_isLoading)
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -293,9 +316,7 @@ class _PhotosPageState extends State<PhotosPage> {
                       vertical: 28,
                     ),
                     child: Text(
-                      _keyword.trim().isEmpty &&
-                              _selectedTags.isEmpty &&
-                              _selectedRange == null
+                      _selectedTags.isEmpty && _selectedRange == null
                           ? '暂无图片，请先去「回忆」页扫描相册'
                           : '没有找到符合筛选条件的图片',
                       textAlign: TextAlign.center,
@@ -354,10 +375,7 @@ class _PhotosPageState extends State<PhotosPage> {
           ],
         ),
       ),
-      floatingActionButton:
-          (_keyword.trim().isNotEmpty ||
-              _selectedTags.isNotEmpty ||
-              _selectedRange != null)
+      floatingActionButton: (_selectedTags.isNotEmpty || _selectedRange != null)
           ? FloatingActionButton.extended(
               onPressed: _clearAllFilters,
               icon: const Icon(Icons.close_rounded),
@@ -436,33 +454,6 @@ class _PhotoTile extends StatelessWidget {
                   ),
                 ),
               ),
-              if (photo.isAiAnalyzed)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.28),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: const Text(
-                      'AI',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -471,168 +462,356 @@ class _PhotoTile extends StatelessWidget {
   }
 }
 
-class _PhotoPreviewPage extends StatelessWidget {
+class _PhotoPreviewPage extends StatefulWidget {
   final PhotoEntity photo;
 
   const _PhotoPreviewPage({required this.photo});
 
   @override
+  State<_PhotoPreviewPage> createState() => _PhotoPreviewPageState();
+}
+
+class _PhotoPreviewPageState extends State<_PhotoPreviewPage> {
+  final PhotoService _photoService = PhotoService();
+  late PhotoEntity _photo;
+
+  @override
+  void initState() {
+    super.initState();
+    _photo = widget.photo;
+    _photoService.localDataVersion.addListener(_handleLocalDataChanged);
+    _reloadLatestPhoto();
+  }
+
+  @override
+  void dispose() {
+    _photoService.localDataVersion.removeListener(_handleLocalDataChanged);
+    super.dispose();
+  }
+
+  void _handleLocalDataChanged() {
+    _reloadLatestPhoto();
+  }
+
+  Future<void> _reloadLatestPhoto() async {
+    final latest = await _photoService.isar.collection<PhotoEntity>().get(
+      _photo.id,
+    );
+    if (!mounted || latest == null) {
+      return;
+    }
+    setState(() {
+      _photo = latest;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final photo = _photo;
     final date = DateTime.fromMillisecondsSinceEpoch(photo.timestamp);
     final title =
         '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final file = File(photo.path);
+    final fileExists = photo.path.isNotEmpty && file.existsSync();
+    final fileName = photo.path.isEmpty ? '未知文件' : photo.path.split('/').last;
+    final fileSizeText = fileExists ? _formatBytes(file.lengthSync()) : '文件不可用';
+    final previewAspectRatio = photo.width > 0 && photo.height > 0
+        ? photo.width / photo.height
+        : 1.0;
+    final dimensionsText = photo.width > 0 && photo.height > 0
+        ? '${photo.width} × ${photo.height}'
+        : '未知';
+    final locationText = [
+      photo.province,
+      photo.city,
+      photo.district,
+    ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' · ');
+    final aiTags = photo.aiTags ?? const <String>[];
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0B1220),
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: const Color(0xFF0B1220),
         surfaceTintColor: Colors.transparent,
         foregroundColor: Colors.white,
         title: Text(title),
       ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 1,
-          maxScale: 4,
-          child: Image.file(
-            File(photo.path),
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Center(
-              child: Text('图片加载失败', style: TextStyle(color: Colors.white70)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: AspectRatio(
+              aspectRatio: previewAspectRatio > 0 ? previewAspectRatio : 1,
+              child: ColoredBox(
+                color: Colors.black,
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image.file(
+                    File(photo.path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Text(
+                        '图片加载失败',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          _PhotoInfoSection(
+            title: '图片信息',
+            items: [
+              _PhotoInfoItem(
+                label: '拍摄时间',
+                value: '$title ${_formatTime(date)}',
+              ),
+              _PhotoInfoItem(label: '尺寸', value: dimensionsText),
+              _PhotoInfoItem(label: '文件名', value: fileName),
+              _PhotoInfoItem(label: '文件大小', value: fileSizeText),
+              _PhotoInfoItem(
+                label: 'Caption',
+                value: (photo.caption?.trim().isNotEmpty ?? false)
+                    ? photo.caption!.trim()
+                    : '暂无描述',
+              ),
+              if (locationText.isNotEmpty)
+                _PhotoInfoItem(label: '行政区', value: locationText),
+              if (photo.formattedAddress?.isNotEmpty ?? false)
+                _PhotoInfoItem(label: '详细地址', value: photo.formattedAddress!),
+              _PhotoInfoItem(
+                label: '分析状态',
+                value: photo.isAiAnalyzed ? '已分析' : '未分析',
+              ),
+              _PhotoInfoItem(
+                label: '标签',
+                value: aiTags.isEmpty ? '暂无标签' : aiTags.join('、'),
+              ),
+              if (photo.isAiAnalyzed && photo.faceCount > 0)
+                _PhotoInfoItem(label: '人脸数', value: '${photo.faceCount}'),
+              if (photo.isAiAnalyzed && photo.smileProb > 0)
+                _PhotoInfoItem(
+                  label: '微笑概率',
+                  value: '${(photo.smileProb * 100).toStringAsFixed(0)}%',
+                ),
+              if (photo.isAiAnalyzed && photo.joyScore != null)
+                _PhotoInfoItem(
+                  label: '欢乐值',
+                  value: photo.joyScore!.toStringAsFixed(2),
+                ),
+              _PhotoInfoItem(
+                label: '文件路径',
+                value: photo.path.isEmpty ? '未知' : photo.path,
+                isCollapsible: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime date) {
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+class _PhotoInfoSection extends StatelessWidget {
+  final String title;
+  final List<_PhotoInfoItem> items;
+
+  const _PhotoInfoSection({required this.title, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < items.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    items[i].label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: items[i].isCollapsible
+                      ? _CollapsiblePhotoInfoValue(value: items[i].value)
+                      : Text(
+                          items[i].value,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+            if (i != items.length - 1) const SizedBox(height: 10),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _PhotoSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final TextEditingController controller;
-  final String keyword;
+class _PhotoInfoItem {
+  final String label;
+  final String value;
+  final bool isCollapsible;
+
+  const _PhotoInfoItem({
+    required this.label,
+    required this.value,
+    this.isCollapsible = false,
+  });
+}
+
+class _CollapsiblePhotoInfoValue extends StatefulWidget {
+  final String value;
+
+  const _CollapsiblePhotoInfoValue({required this.value});
+
+  @override
+  State<_CollapsiblePhotoInfoValue> createState() =>
+      _CollapsiblePhotoInfoValueState();
+}
+
+class _CollapsiblePhotoInfoValueState
+    extends State<_CollapsiblePhotoInfoValue> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final canExpand = widget.value.length > 40;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.value,
+          maxLines: _expanded || !canExpand ? null : 2,
+          overflow: _expanded || !canExpand ? null : TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        if (canExpand)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _expanded = !_expanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _expanded ? '收起' : '展开',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ActivePhotoFiltersBar extends StatelessWidget {
   final Set<String> selectedTags;
   final DateTimeRange? range;
-  final ValueChanged<String> onKeywordChanged;
   final VoidCallback onClearAll;
   final ValueChanged<String> onRemoveTag;
   final VoidCallback onClearRange;
 
-  const _PhotoSearchHeaderDelegate({
-    required this.controller,
-    required this.keyword,
+  const _ActivePhotoFiltersBar({
     required this.selectedTags,
     required this.range,
-    required this.onKeywordChanged,
     required this.onClearAll,
     required this.onRemoveTag,
     required this.onClearRange,
   });
 
   @override
-  double get minExtent => selectedTags.isEmpty && range == null ? 64 : 104;
-
-  @override
-  double get maxExtent => minExtent;
-
-  @override
-  bool shouldRebuild(_PhotoSearchHeaderDelegate oldDelegate) {
-    return controller != oldDelegate.controller ||
-        keyword != oldDelegate.keyword ||
-        selectedTags.length != oldDelegate.selectedTags.length ||
-        range != oldDelegate.range;
-  }
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final hasFilters = selectedTags.isNotEmpty || range != null;
+  Widget build(BuildContext context) {
     return Container(
       color: Colors.white.withValues(alpha: 0.92),
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
         children: [
-          TextField(
-            controller: controller,
-            onChanged: onKeywordChanged,
-            textAlignVertical: TextAlignVertical.center,
-            decoration: InputDecoration(
-              hintText: '搜索标签，例如：美食、海滩、猫…',
-              hintStyle: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF94A3B8),
-              ),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: Color(0xFF64748B),
-              ),
-              suffixIcon: keyword.trim().isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Color(0xFF94A3B8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final tag in selectedTags.toList()..sort())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _FilterChip(
+                        label: tag,
+                        onDeleted: () => onRemoveTag(tag),
                       ),
-                      onPressed: () {
-                        controller.clear();
-                        onKeywordChanged('');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: const Color(0xFFF1F5F9),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 0,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
+                    ),
+                  if (range != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _FilterChip(
+                        label: _formatRange(range!),
+                        onDeleted: onClearRange,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-          if (hasFilters) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final tag in selectedTags.toList()..sort())
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _FilterChip(
-                              label: tag,
-                              onDeleted: () => onRemoveTag(tag),
-                            ),
-                          ),
-                        if (range != null)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _FilterChip(
-                              label: _formatRange(range!),
-                              onDeleted: onClearRange,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: onClearAll,
-                  child: const Text(
-                    '清空',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
+          TextButton(
+            onPressed: onClearAll,
+            child: const Text(
+              '清空',
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
-          ],
+          ),
         ],
       ),
     );

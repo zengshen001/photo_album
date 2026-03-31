@@ -3,14 +3,16 @@ class StoryMockGenerator {
 
   static Future<String> generate({
     required String title,
-    required String subtitle,
     required List<String> photoDescriptions,
     required bool isShort,
+    String? templateTitle,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     final buffer = StringBuffer();
-    buffer.writeln('今天是个特别的日子，我们开启了一段关于"$title"的旅程。$subtitle，每一刻都值得珍藏。\n');
+    buffer.writeln(
+      '今天是个特别的日子，我们开启了一段关于"$title"的旅程，每一刻都值得珍藏。${templateTitle == null ? '' : '这次我尝试用「$templateTitle」的节奏把回忆串起来。'}\n',
+    );
 
     if (photoDescriptions.isNotEmpty) {
       buffer.writeln('![img](0)\n');
