@@ -255,7 +255,6 @@ class _EventFeedCard extends StatelessWidget {
                   ),
                 ),
               ),
-
               Positioned(
                 left: 0,
                 right: 0,
@@ -287,11 +286,11 @@ class _EventFeedCard extends StatelessWidget {
                       event.displayTitle,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),

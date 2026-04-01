@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
 import '../../models/vo/photo.dart';
+import '../../models/entity/event_entity.dart';
+import '../../service/photo/photo_service.dart';
 import '../widgets/ai_backdrop.dart';
 import '../../widgets/lazy_load_image.dart';
 import 'widgets/story_creation_sheet.dart';
@@ -17,6 +19,7 @@ class EventDetailPage extends StatefulWidget {
 
 class _EventDetailPageState extends State<EventDetailPage> {
   late final Set<String> _selectedPhotoIds;
+  String? _editedTitle;
 
   @override
   void initState() {
@@ -53,10 +56,82 @@ class _EventDetailPageState extends State<EventDetailPage> {
     );
   }
 
+  Future<void> _editTitle() async {
+    final controller = TextEditingController(
+      text: _editedTitle ?? widget.event.displayTitle,
+    );
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('编辑回忆标题'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(hintText: '输入新的标题'),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+
+    final title = (newTitle ?? '').trim();
+    if (title.isEmpty) {
+      return;
+    }
+
+    final id = int.tryParse(widget.event.id);
+    if (id == null) {
+      return;
+    }
+
+    final isar = PhotoService().isar;
+    await isar.writeTxn(() async {
+      final latest = await isar.collection<EventEntity>().get(id);
+      if (latest == null) {
+        return;
+      }
+      latest.title = title;
+      latest.aiThemes = [title];
+      latest.isLlmGenerated = true;
+      await isar.collection<EventEntity>().put(latest);
+    });
+
+    PhotoService().markLocalDataChanged();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _editedTitle = title;
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedPhotoIds.length == widget.event.photos.length) {
+        _selectedPhotoIds.clear();
+      } else {
+        _selectedPhotoIds.addAll(widget.event.photos.map((p) => p.id));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final coverPhoto = widget.event.photos.first;
+
+    final displayTitle = _editedTitle ?? widget.event.displayTitle;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -70,27 +145,32 @@ class _EventDetailPageState extends State<EventDetailPage> {
               backgroundColor: Colors.white.withValues(alpha: 0.72),
               surfaceTintColor: Colors.transparent,
               actions: [
+                IconButton(
+                  tooltip: '编辑标题',
+                  onPressed: _editTitle,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
                 TextButton(
-                  onPressed: () {
-                    setState(() {
-                      if (_selectedPhotoIds.length ==
-                          widget.event.photos.length) {
-                        _selectedPhotoIds.clear();
-                      } else {
-                        _selectedPhotoIds.addAll(
-                          widget.event.photos.map((p) => p.id),
-                        );
-                      }
-                    });
-                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.92),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      side: BorderSide(
+                        color: Colors.black.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                  ),
+                  onPressed: _toggleSelectAll,
                   child: Text(
                     _selectedPhotoIds.length == widget.event.photos.length
                         ? '取消全选'
                         : '全选',
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -102,7 +182,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   right: 20,
                 ),
                 title: Text(
-                  widget.event.displayTitle,
+                  displayTitle,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

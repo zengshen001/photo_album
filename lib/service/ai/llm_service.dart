@@ -99,6 +99,9 @@ class LLMService {
   List<String> _getFallbackTitles(EventEntity event) {
     final location = event.city ?? event.province ?? '未知地点';
     final dateRange = event.dateRangeText;
+    if (event.tags.contains('🎓 毕业季')) {
+      return ['毕业季 · $location', '毕业季的合照时刻', '$location · 毕业季回忆'];
+    }
     if (event.isFestivalEvent && event.festivalName != null) {
       final festival = event.festivalName!;
       return [
@@ -119,6 +122,10 @@ class LLMService {
     await Future.delayed(const Duration(seconds: 1));
 
     final location = event.city ?? event.province ?? '未知地点';
+
+    if (event.tags.contains('🎓 毕业季')) {
+      return ['毕业季 · $location', '毕业季的合照时刻', '$location · 毕业季回忆', '把毕业季写成故事'];
+    }
 
     if (event.isFestivalEvent && event.festivalName != null) {
       final festival = event.festivalName!;

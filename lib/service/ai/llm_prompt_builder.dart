@@ -31,6 +31,14 @@ class LlmPromptBuilder {
 - 本事件命中了节日聚类，节日为「$festival」。
 - 你生成的每个标题必须围绕「$festival」的回忆/氛围/场景展开，并且标题中必须包含「$festival」字样。
 - 不要把标题写成其他节日（例如“中秋”“国庆”等），也不要写成与节日无关的泛化标题。''';
+    final hasGraduationSeason = event.tags.contains('🎓 毕业季');
+    final graduationConstraint = !hasGraduationSeason
+        ? ''
+        : '''
+
+特殊约束（必须遵守）：
+- 本事件命中了场景「毕业季」。
+- 你生成的每个标题必须包含「毕业季」字样，并围绕毕业/合照/告别/校园氛围展开。''';
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -40,6 +48,7 @@ class LlmPromptBuilder {
 - 地点: $location
 - 季节: $season
 - 节日标签: $festival
+- 场景标签: ${event.tags.isEmpty ? '无' : event.tags.join('、')}
 - 主要标签: $tagsStr
 - 平均欢乐值: $joyScore (范围 0.0-1.0，越高越快乐)
 
@@ -52,6 +61,7 @@ class LlmPromptBuilder {
 6. 结合地点和标签生成创意标题
 7. 可以使用一些诗意或文艺的表达
 $festivalConstraint
+$graduationConstraint
 
 示例风格：
 - 青岛 · 海风与微笑

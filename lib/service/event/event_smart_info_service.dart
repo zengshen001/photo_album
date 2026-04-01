@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../../utils/event/event_scenario_rules.dart';
 import '../../utils/event/smart_title_generator.dart';
 import '../ai/llm_service.dart';
 import '../photo/photo_service.dart';
@@ -173,16 +174,19 @@ class EventSmartInfoService {
       latestEvent.joyScore = stats['avgJoyScore'];
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
       latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
-      latestEvent.tags = _extractTopTags(stats, topTagLimit);
+      latestEvent.tags =
+          (stats['scenarioTags'] as List<String>?)?.toList() ?? const [];
 
       final generatedTitles = shouldUseLlm
           ? await _generateLlmThemesWithFallback(latestEvent, stats)
           : _generateLocalThemes(latestEvent, stats, progress);
 
-      latestEvent.aiThemes = generatedTitles.titles;
-      latestEvent.isLlmGenerated = generatedTitles.fromLlm;
-      if (latestEvent.aiThemes != null && latestEvent.aiThemes!.isNotEmpty) {
-        latestEvent.title = latestEvent.aiThemes!.first;
+      if (!latestEvent.isLlmGenerated) {
+        latestEvent.aiThemes = generatedTitles.titles;
+        latestEvent.isLlmGenerated = generatedTitles.fromLlm;
+        if (latestEvent.aiThemes != null && latestEvent.aiThemes!.isNotEmpty) {
+          latestEvent.title = latestEvent.aiThemes!.first;
+        }
       }
 
       await isar.collection<EventEntity>().put(latestEvent);
@@ -207,7 +211,8 @@ class EventSmartInfoService {
       latestEvent.joyScore = stats['avgJoyScore'];
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
       latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
-      latestEvent.tags = _extractTopTags(stats, topTagLimit);
+      latestEvent.tags =
+          (stats['scenarioTags'] as List<String>?)?.toList() ?? const [];
       await isar.collection<EventEntity>().put(latestEvent);
     });
   }
@@ -258,6 +263,11 @@ class EventSmartInfoService {
       return '${event.festivalName}回忆';
     }
 
+    if (event.tags.contains('🎓 毕业季')) {
+      final location = event.city ?? event.province ?? '未知地点';
+      return '毕业季 · $location';
+    }
+
     final date = DateTime.fromMillisecondsSinceEpoch(event.startTime);
     final topTag = stats['topTag'] as String?;
     final joyScore = stats['avgJoyScore'] as double?;
@@ -286,6 +296,16 @@ class EventSmartInfoService {
         '$location 的$festival时光',
         '$festival里的热闹瞬间',
         '$festival漫游记',
+      ]);
+      return _uniqueTitles(titles).take(5).toList();
+    }
+
+    if (event.tags.contains('🎓 毕业季')) {
+      titles.addAll([
+        '毕业季 · $location',
+        '毕业季的合照时刻',
+        '$location · 毕业季回忆',
+        '把毕业季写成故事',
       ]);
       return _uniqueTitles(titles).take(5).toList();
     }
@@ -346,6 +366,7 @@ class EventSmartInfoService {
         'topTagRatio': 0.0,
         'tagCounts': <String, int>{},
         'bestPhotoId': null,
+        'scenarioTags': <String>[],
       };
     }
 
@@ -393,6 +414,7 @@ class EventSmartInfoService {
       'topTagRatio': topTagRatio,
       'tagCounts': tagCounts,
       'bestPhotoId': bestPhotoId,
+      'scenarioTags': EventScenarioRules.generateAdvancedTags(photos),
     };
   }
 }
