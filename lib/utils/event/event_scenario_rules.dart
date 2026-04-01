@@ -49,8 +49,11 @@ class EventScenarioRules {
     }
 
     final graduationSeasonRatio = graduationSeasonCount / photos.length;
+    final hasCampusContext = _containsAny(allTags, ['学校', '教室']);
+    final hasGraduationCeremonySignal =
+        totalFaces > 10 && _containsAny(allTags, ['旗帜', '横幅']);
     if (graduationSeasonRatio >= 0.6 &&
-        _containsAny(allTags, ['学校', '教室']) &&
+        (hasCampusContext || hasGraduationCeremonySignal) &&
         photos.length >= 3) {
       advancedTags.add("🎓 毕业季");
     }

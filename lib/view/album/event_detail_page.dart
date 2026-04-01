@@ -127,7 +127,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                         path: coverPhoto.path,
                         fit: BoxFit.cover,
                         loadImmediately: true,
-                        useThumbnail: false,
+                        useThumbnail: true,
                         thumbnailWidth: 800,
                         thumbnailHeight: 600,
                       ),
