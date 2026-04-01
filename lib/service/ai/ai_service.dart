@@ -71,9 +71,6 @@ class AIService {
           _collectAffectedEventId(affectedEventIds, result.eventId);
 
           totalAnalyzed++;
-
-          // ⏳ 休息一下，防止 UI 掉帧 (AI 运算很吃 CPU)
-          await Future.delayed(const Duration(milliseconds: 100));
         }
 
         if (affectedEventIds.isNotEmpty) {
@@ -123,20 +120,19 @@ class AIService {
     required Set<int> eligibleEventIds,
     required int batchSize,
   }) async {
-    final pendingPhotos = await isar
+    if (eligibleEventIds.isEmpty) {
+      return [];
+    }
+
+    final eligibleIds = eligibleEventIds.toList();
+    return isar
         .collection<PhotoEntity>()
         .filter()
         .isAiAnalyzedEqualTo(false)
-        .limit(batchSize * 4)
+        .eventIdIsNotNull()
+        .anyOf(eligibleIds, (q, eventId) => q.eventIdEqualTo(eventId))
+        .limit(batchSize)
         .findAll();
-
-    return pendingPhotos
-        .where(
-          (photo) =>
-              photo.eventId != null && eligibleEventIds.contains(photo.eventId),
-        )
-        .take(batchSize)
-        .toList();
   }
 
   Future<_AiAnalysisResult> _analyzeSinglePhoto({

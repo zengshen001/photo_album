@@ -23,6 +23,14 @@ class LlmPromptBuilder {
     final festival = event.isFestivalEvent && event.festivalName != null
         ? event.festivalName
         : '无';
+    final festivalConstraint = festival == '无'
+        ? ''
+        : '''
+
+特殊约束（必须遵守）：
+- 本事件命中了节日聚类，节日为「$festival」。
+- 你生成的每个标题必须围绕「$festival」的回忆/氛围/场景展开，并且标题中必须包含「$festival」字样。
+- 不要把标题写成其他节日（例如“中秋”“国庆”等），也不要写成与节日无关的泛化标题。''';
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -43,6 +51,7 @@ class LlmPromptBuilder {
 5. 不要添加编号（如 1.、2. 等）
 6. 结合地点和标签生成创意标题
 7. 可以使用一些诗意或文艺的表达
+$festivalConstraint
 
 示例风格：
 - 青岛 · 海风与微笑

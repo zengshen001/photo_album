@@ -100,10 +100,11 @@ class LLMService {
     final location = event.city ?? event.province ?? '未知地点';
     final dateRange = event.dateRangeText;
     if (event.isFestivalEvent && event.festivalName != null) {
+      final festival = event.festivalName!;
       return [
-        '${event.festivalName}回忆',
-        '${event.festivalName} · $location',
-        '$location 的${event.festivalName}记忆',
+        '$festival回忆 · $location',
+        '$location 的$festival时光',
+        '$festival里的人间烟火',
       ];
     }
 
@@ -120,11 +121,12 @@ class LLMService {
     final location = event.city ?? event.province ?? '未知地点';
 
     if (event.isFestivalEvent && event.festivalName != null) {
+      final festival = event.festivalName!;
       return [
-        '${event.festivalName}回忆',
-        '${event.festivalName} · $location',
-        '$location 的${event.festivalName}时光',
-        '${event.festivalName}记事',
+        '$festival回忆 · $location',
+        '$location 的$festival时光',
+        '$festival里的热闹瞬间',
+        '$festival漫游记',
       ];
     }
 

@@ -69,14 +69,12 @@ class EventSmartInfoService {
       }
 
       if (shouldUseLlm && event.isLlmGenerated) {
-        // 已有 LLM 标题，只更新统计信息，跳过 LLM 标题生成
+        // 已有 LLM 标题，只更新统计信息，避免重复生成并覆盖现有标题列表
         print("  ℹ️ 事件 $eventId 已有 LLM 标题，跳过重复生成");
-        await _applyEventSmartInfoUpdate(
+        await _applyEventStatsUpdate(
           isar: isar,
           eventId: eventId,
           stats: stats,
-          progress: progress,
-          shouldUseLlm: false, // 传递 false 避免重复生成 LLM 标题
         );
         return;
       }
@@ -195,14 +193,39 @@ class EventSmartInfoService {
     });
   }
 
+  Future<void> _applyEventStatsUpdate({
+    required Isar isar,
+    required int eventId,
+    required Map<String, dynamic> stats,
+  }) async {
+    await isar.writeTxn(() async {
+      final latestEvent = await isar.collection<EventEntity>().get(eventId);
+      if (latestEvent == null) {
+        return;
+      }
+
+      latestEvent.joyScore = stats['avgJoyScore'];
+      latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
+      latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
+      latestEvent.tags = _extractTopTags(stats, topTagLimit);
+      await isar.collection<EventEntity>().put(latestEvent);
+    });
+  }
+
   _GeneratedThemes _generateLocalThemes(
     EventEntity event,
     Map<String, dynamic> stats,
     int progress,
   ) {
-    final title = _generateLocalTitle(event, stats);
+    final titles = _generateLocalThemeCandidates(event, stats);
+    final title = titles.isEmpty
+        ? _generateLocalTitle(event, stats)
+        : titles.first;
     print("  🏠 [本地] 生成规则标题: $title (进度: $progress%)");
-    return _GeneratedThemes(titles: [title], fromLlm: false);
+    return _GeneratedThemes(
+      titles: titles.isEmpty ? [title] : titles,
+      fromLlm: false,
+    );
   }
 
   Future<_GeneratedThemes> _generateLlmThemesWithFallback(
@@ -246,6 +269,62 @@ class EventSmartInfoService {
       topTag: topTag,
       joyScore: joyScore,
     );
+  }
+
+  List<String> _generateLocalThemeCandidates(
+    EventEntity event,
+    Map<String, dynamic> stats,
+  ) {
+    final location = event.city ?? event.province ?? '未知地点';
+    final dateRange = event.dateRangeText;
+    final titles = <String>[];
+
+    if (event.isFestivalEvent && event.festivalName != null) {
+      final festival = event.festivalName!;
+      titles.addAll([
+        '$festival回忆 · $location',
+        '$location 的$festival时光',
+        '$festival里的热闹瞬间',
+        '$festival漫游记',
+      ]);
+      return _uniqueTitles(titles).take(5).toList();
+    }
+
+    final topTag = stats['topTag'] as String?;
+    if (topTag != null && topTag.trim().isNotEmpty) {
+      final templates = SmartTitleGenerator.getTemplatesForTag(topTag);
+      if (templates != null && templates.isNotEmpty) {
+        titles.addAll(
+          templates
+              .map((t) => t.replaceAll('{city}', location))
+              .where((t) => t.trim().isNotEmpty)
+              .take(4),
+        );
+      }
+      titles.add('$topTag时光 · $location');
+    }
+
+    titles.add('$location · $dateRange');
+    titles.add('${event.season}的$location');
+
+    final unique = _uniqueTitles(titles);
+    if (unique.length >= 3) {
+      return unique.take(5).toList();
+    }
+    return unique;
+  }
+
+  List<String> _uniqueTitles(List<String> input) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final item in input) {
+      final s = item.trim();
+      if (s.isEmpty) continue;
+      if (seen.add(s)) {
+        result.add(s);
+      }
+    }
+    return result;
   }
 
   List<String> _extractTopTags(Map<String, dynamic> stats, int count) {
