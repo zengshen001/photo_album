@@ -1,0 +1,2136 @@
+[
+    {
+        "eventId": "E01",
+        "title": "济南 · 校园开场日",
+        "city": "济南市",
+        "province": "山东省",
+        "startTime": "2025-06-01T09:00:00+08:00",
+        "endTime": "2025-06-01T11:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250601_090001_01.jpg",
+                "exifInfo": {
+                    "latitude": 36.6680,
+                    "longitude": 117.0570,
+                    "timestamp": "2025-06-01T09:00:01+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "山东大学中心校区, 济南市历下区"
+                },
+                "caption": "校园主路的清晨阳光",
+                "tags": [
+                    "校园",
+                    "建筑",
+                    "人群",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250601_090305_02.jpg",
+                "exifInfo": {
+                    "latitude": 36.6682,
+                    "longitude": 117.0568,
+                    "timestamp": "2025-06-01T09:03:05+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "校园主路口, 山东大学中心校区"
+                },
+                "caption": "新学期导览牌",
+                "tags": [
+                    "文字",
+                    "标志",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250601_090702_03.jpg",
+                "exifInfo": {
+                    "latitude": 36.6685,
+                    "longitude": 117.0573,
+                    "timestamp": "2025-06-01T09:07:02+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆门前广场, 山东大学中心校区"
+                },
+                "caption": "图书馆前的合影",
+                "tags": [
+                    "人像",
+                    "建筑",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250601_091015_04.jpg",
+                "exifInfo": {
+                    "latitude": 36.6679,
+                    "longitude": 117.0559,
+                    "timestamp": "2025-06-01T09:10:15+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "操场看台, 山东大学中心校区"
+                },
+                "caption": "操场看台与跑道",
+                "tags": [
+                    "运动",
+                    "操场",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250601_091318_05.jpg",
+                "exifInfo": {
+                    "latitude": 36.6687,
+                    "longitude": 117.0582,
+                    "timestamp": "2025-06-01T09:13:18+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "学生食堂外, 山东大学中心校区"
+                },
+                "caption": "食堂外的排队人群",
+                "tags": [
+                    "人群",
+                    "快餐",
+                    "美食"
+                ]
+            },
+            {
+                "name": "IMG_20250601_092004_06.jpg",
+                "exifInfo": {
+                    "latitude": 36.6689,
+                    "longitude": 117.0584,
+                    "timestamp": "2025-06-01T09:20:04+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "学生餐厅一层, 山东大学中心校区"
+                },
+                "caption": "早餐套餐与餐具",
+                "tags": [
+                    "美食",
+                    "餐具",
+                    "快餐"
+                ]
+            },
+            {
+                "name": "IMG_20250601_093221_07.jpg",
+                "exifInfo": {
+                    "latitude": 36.6675,
+                    "longitude": 117.0577,
+                    "timestamp": "2025-06-01T09:32:21+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "文科楼走廊, 山东大学中心校区"
+                },
+                "caption": "走廊里的光影",
+                "tags": [
+                    "光影",
+                    "建筑",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250601_094049_08.jpg",
+                "exifInfo": {
+                    "latitude": 36.6669,
+                    "longitude": 117.0588,
+                    "timestamp": "2025-06-01T09:40:49+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "校史馆外墙, 山东大学中心校区"
+                },
+                "caption": "校史馆外的砖墙与徽章",
+                "tags": [
+                    "文字",
+                    "标志",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250601_100232_09.jpg",
+                "exifInfo": {
+                    "latitude": 36.6672,
+                    "longitude": 117.0562,
+                    "timestamp": "2025-06-01T10:02:32+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "体育馆入口, 山东大学中心校区"
+                },
+                "caption": "体育馆入口人流",
+                "tags": [
+                    "人群",
+                    "运动",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250601_110000_10.jpg",
+                "exifInfo": {
+                    "latitude": 36.6681,
+                    "longitude": 117.0571,
+                    "timestamp": "2025-06-01T11:00:00+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "校园主路尽头, 山东大学中心校区"
+                },
+                "caption": "上午的校园收尾",
+                "tags": [
+                    "校园",
+                    "休闲",
+                    "建筑"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E02",
+        "title": "济南 · 图书馆学习日",
+        "city": "济南市",
+        "province": "山东省",
+        "startTime": "2025-06-03T14:00:00+08:00",
+        "endTime": "2025-06-03T16:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250603_140005_01.jpg",
+                "exifInfo": {
+                    "latitude": 36.6686,
+                    "longitude": 117.0575,
+                    "timestamp": "2025-06-03T14:00:05+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "山东大学图书馆一层大厅"
+                },
+                "caption": "图书馆一层通道",
+                "tags": [
+                    "建筑",
+                    "室内",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250603_140312_02.jpg",
+                "exifInfo": {
+                    "latitude": 36.6687,
+                    "longitude": 117.0576,
+                    "timestamp": "2025-06-03T14:03:12+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆阅览室A区"
+                },
+                "caption": "阅览室安静的下午",
+                "tags": [
+                    "阅读",
+                    "室内",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250603_140700_03.jpg",
+                "exifInfo": {
+                    "latitude": 36.6688,
+                    "longitude": 117.0578,
+                    "timestamp": "2025-06-03T14:07:00+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆书架区"
+                },
+                "caption": "书架上的专业书籍",
+                "tags": [
+                    "书",
+                    "文字",
+                    "室内"
+                ]
+            },
+            {
+                "name": "IMG_20250603_141115_04.jpg",
+                "exifInfo": {
+                    "latitude": 36.6689,
+                    "longitude": 117.0579,
+                    "timestamp": "2025-06-03T14:11:15+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆走廊"
+                },
+                "caption": "走廊尽头的窗光",
+                "tags": [
+                    "光影",
+                    "建筑",
+                    "室内"
+                ]
+            },
+            {
+                "name": "IMG_20250603_142020_05.jpg",
+                "exifInfo": {
+                    "latitude": 36.6689,
+                    "longitude": 117.0581,
+                    "timestamp": "2025-06-03T14:20:20+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆自习区"
+                },
+                "caption": "自习桌上的笔记与餐具",
+                "tags": [
+                    "笔记",
+                    "文具",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250603_143005_06.jpg",
+                "exifInfo": {
+                    "latitude": 36.6685,
+                    "longitude": 117.0573,
+                    "timestamp": "2025-06-03T14:30:05+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆咖啡角"
+                },
+                "caption": "咖啡角的快餐下午茶",
+                "tags": [
+                    "咖啡",
+                    "快餐",
+                    "美食"
+                ]
+            },
+            {
+                "name": "IMG_20250603_144310_07.jpg",
+                "exifInfo": {
+                    "latitude": 36.6683,
+                    "longitude": 117.0571,
+                    "timestamp": "2025-06-03T14:43:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆门外台阶"
+                },
+                "caption": "门外的台阶与校道",
+                "tags": [
+                    "建筑",
+                    "校园",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250603_145210_08.jpg",
+                "exifInfo": {
+                    "latitude": 36.6682,
+                    "longitude": 117.0570,
+                    "timestamp": "2025-06-03T14:52:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆外侧树荫"
+                },
+                "caption": "树荫下的休息",
+                "tags": [
+                    "树木",
+                    "休闲",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250603_155010_09.jpg",
+                "exifInfo": {
+                    "latitude": 36.6686,
+                    "longitude": 117.0575,
+                    "timestamp": "2025-06-03T15:50:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆出口"
+                },
+                "caption": "离开图书馆的傍晚",
+                "tags": [
+                    "建筑",
+                    "室外",
+                    "校园"
+                ]
+            },
+            {
+                "name": "IMG_20250603_160000_10.jpg",
+                "exifInfo": {
+                    "latitude": 36.6687,
+                    "longitude": 117.0576,
+                    "timestamp": "2025-06-03T16:00:00+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "图书馆门口"
+                },
+                "caption": "学习日的收尾",
+                "tags": [
+                    "校园",
+                    "休闲"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E03",
+        "title": "济南 · 端午节同庆（大明湖）",
+        "city": "济南市",
+        "province": "山东省",
+        "startTime": "2025-06-07T10:00:00+08:00",
+        "endTime": "2025-06-07T12:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250607_100005_01.jpg",
+                "exifInfo": {
+                    "latitude": 36.6715,
+                    "longitude": 117.0248,
+                    "timestamp": "2025-06-07T10:00:05+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "大明湖风景区北门"
+                },
+                "caption": "端午节湖畔人潮",
+                "tags": [
+                    "节日",
+                    "公园",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_20250607_100310_02.jpg",
+                "exifInfo": {
+                    "latitude": 36.6712,
+                    "longitude": 117.0252,
+                    "timestamp": "2025-06-07T10:03:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "大明湖牌坊旁"
+                },
+                "caption": "牌坊与端午装饰",
+                "tags": [
+                    "建筑",
+                    "标志",
+                    "节日"
+                ]
+            },
+            {
+                "name": "IMG_20250607_100640_03.jpg",
+                "exifInfo": {
+                    "latitude": 36.6710,
+                    "longitude": 117.0255,
+                    "timestamp": "2025-06-07T10:06:40+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "湖边步道"
+                },
+                "caption": "粽子与餐具摆盘",
+                "tags": [
+                    "美食",
+                    "餐具",
+                    "节日"
+                ]
+            },
+            {
+                "name": "IMG_20250607_101145_04.jpg",
+                "exifInfo": {
+                    "latitude": 36.6714,
+                    "longitude": 117.0258,
+                    "timestamp": "2025-06-07T10:11:45+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "湖畔亭子"
+                },
+                "caption": "亭台倒影",
+                "tags": [
+                    "倒影",
+                    "风景",
+                    "公园"
+                ]
+            },
+            {
+                "name": "IMG_20250607_101512_05.jpg",
+                "exifInfo": {
+                    "latitude": 36.6713,
+                    "longitude": 117.0251,
+                    "timestamp": "2025-06-07T10:15:12+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "竹林步道"
+                },
+                "caption": "竹林与端午挂饰",
+                "tags": [
+                    "自然",
+                    "节日",
+                    "风景"
+                ]
+            },
+            {
+                "name": "IMG_20250607_102045_06.jpg",
+                "exifInfo": {
+                    "latitude": 36.6716,
+                    "longitude": 117.0257,
+                    "timestamp": "2025-06-07T10:20:45+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "湖中小桥"
+                },
+                "caption": "小桥上迎风的彩绳",
+                "tags": [
+                    "建筑",
+                    "节日",
+                    "风景"
+                ]
+            },
+            {
+                "name": "IMG_20250607_103110_07.jpg",
+                "exifInfo": {
+                    "latitude": 36.6718,
+                    "longitude": 117.0259,
+                    "timestamp": "2025-06-07T10:31:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "湖边长椅"
+                },
+                "caption": "长椅上的午后时光",
+                "tags": [
+                    "休闲",
+                    "公园"
+                ]
+            },
+            {
+                "name": "IMG_20250607_104000_08.jpg",
+                "exifInfo": {
+                    "latitude": 36.6720,
+                    "longitude": 117.0262,
+                    "timestamp": "2025-06-07T10:40:00+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "观景台上望湖"
+                },
+                "caption": "观景台上望湖",
+                "tags": [
+                    "风景",
+                    "公园"
+                ]
+            },
+            {
+                "name": "IMG_20250607_105210_09.jpg",
+                "exifInfo": {
+                    "latitude": 36.6719,
+                    "longitude": 117.0263,
+                    "timestamp": "2025-06-07T10:52:10+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "湖畔茶点区"
+                },
+                "caption": "端午茶点与果盘",
+                "tags": [
+                    "美食",
+                    "休闲",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250607_120000_10.jpg",
+                "exifInfo": {
+                    "latitude": 36.6715,
+                    "longitude": 117.0258,
+                    "timestamp": "2025-06-07T12:00:00+08:00",
+                    "city": "济南市",
+                    "district": "历下区",
+                    "formattedAddress": "大明湖景区出口"
+                },
+                "caption": "端午同庆的收尾",
+                "tags": [
+                    "节日",
+                    "公园"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E04",
+        "title": "北京 · 实习报到（海淀）",
+        "city": "北京市",
+        "province": "北京市",
+        "startTime": "2025-07-10T09:00:00+08:00",
+        "endTime": "2025-07-10T12:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250710_090005_01.jpg",
+                "exifInfo": {
+                    "latitude": 39.9819,
+                    "longitude": 116.3096,
+                    "timestamp": "2025-07-10T09:00:05+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "海淀软件园一期"
+                },
+                "caption": "园区入口与导视图",
+                "tags": [
+                    "建筑",
+                    "标志",
+                    "科技"
+                ]
+            },
+            {
+                "name": "IMG_20250710_090310_02.jpg",
+                "exifInfo": {
+                    "latitude": 39.9821,
+                    "longitude": 116.3094,
+                    "timestamp": "2025-07-10T09:03:10+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "海淀软件园广场"
+                },
+                "caption": "广场与金属雕塑",
+                "tags": [
+                    "金属",
+                    "雕塑",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250710_091005_03.jpg",
+                "exifInfo": {
+                    "latitude": 39.9822,
+                    "longitude": 116.3098,
+                    "timestamp": "2025-07-10T09:10:05+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "办公楼大厅"
+                },
+                "caption": "大厅登记处",
+                "tags": [
+                    "室内",
+                    "人群",
+                    "标志"
+                ]
+            },
+            {
+                "name": "IMG_20250710_091530_04.jpg",
+                "exifInfo": {
+                    "latitude": 39.9820,
+                    "longitude": 116.3099,
+                    "timestamp": "2025-07-10T09:15:30+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "办公楼电梯厅"
+                },
+                "caption": "电梯厅与层牌",
+                "tags": [
+                    "室内",
+                    "文字",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250710_092210_05.jpg",
+                "exifInfo": {
+                    "latitude": 39.9823,
+                    "longitude": 116.3097,
+                    "timestamp": "2025-07-10T09:22:10+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "会议室入口"
+                },
+                "caption": "实习生宣讲会",
+                "tags": [
+                    "人群",
+                    "室内",
+                    "会议"
+                ]
+            },
+            {
+                "name": "IMG_20250710_093305_06.jpg",
+                "exifInfo": {
+                    "latitude": 39.9825,
+                    "longitude": 116.3095,
+                    "timestamp": "2025-07-10T09:33:05+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "楼内茶水间"
+                },
+                "caption": "快餐简餐与餐具",
+                "tags": [
+                    "快餐",
+                    "美食",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250710_100045_07.jpg",
+                "exifInfo": {
+                    "latitude": 39.9824,
+                    "longitude": 116.3093,
+                    "timestamp": "2025-07-10T10:00:45+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "工位区"
+                },
+                "caption": "工位上的电脑与键盘",
+                "tags": [
+                    "电脑",
+                    "键盘",
+                    "室内"
+                ]
+            },
+            {
+                "name": "IMG_20250710_101520_08.jpg",
+                "exifInfo": {
+                    "latitude": 39.9821,
+                    "longitude": 116.3094,
+                    "timestamp": "2025-07-10T10:15:20+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区步道"
+                },
+                "caption": "园区中庭与树荫",
+                "tags": [
+                    "休闲",
+                    "建筑",
+                    "树木"
+                ]
+            },
+            {
+                "name": "IMG_20250710_110250_09.jpg",
+                "exifInfo": {
+                    "latitude": 39.9820,
+                    "longitude": 116.3096,
+                    "timestamp": "2025-07-10T11:02:50+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区雕塑旁"
+                },
+                "caption": "金属材质的现代雕塑",
+                "tags": [
+                    "金属",
+                    "雕塑",
+                    "艺术"
+                ]
+            },
+            {
+                "name": "IMG_20250710_120000_10.jpg",
+                "exifInfo": {
+                    "latitude": 39.9819,
+                    "longitude": 116.3096,
+                    "timestamp": "2025-07-10T12:00:00+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "海淀软件园一期出口"
+                },
+                "caption": "上午报到结束",
+                "tags": [
+                    "建筑",
+                    "标志"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E05",
+        "title": "北京 · 办公午餐（快餐街）",
+        "city": "北京市",
+        "province": "北京市",
+        "startTime": "2025-07-12T11:30:00+08:00",
+        "endTime": "2025-07-12T13:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250712_113005_01.jpg",
+                "exifInfo": {
+                    "latitude": 39.9828,
+                    "longitude": 116.3088,
+                    "timestamp": "2025-07-12T11:30:05+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街"
+                },
+                "caption": "快餐店门口招牌",
+                "tags": [
+                    "快餐",
+                    "美食",
+                    "文字"
+                ]
+            },
+            {
+                "name": "IMG_20250712_113210_02.jpg",
+                "exifInfo": {
+                    "latitude": 39.9829,
+                    "longitude": 116.3089,
+                    "timestamp": "2025-07-12T11:32:10+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街 · 店A"
+                },
+                "caption": "套餐与餐具",
+                "tags": [
+                    "餐具",
+                    "快餐",
+                    "美食"
+                ]
+            },
+            {
+                "name": "IMG_20250712_113515_03.jpg",
+                "exifInfo": {
+                    "latitude": 39.9827,
+                    "longitude": 116.3087,
+                    "timestamp": "2025-07-12T11:35:15+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街 · 店B"
+                },
+                "caption": "汉堡与薯条",
+                "tags": [
+                    "美食",
+                    "快餐",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250712_114010_04.jpg",
+                "exifInfo": {
+                    "latitude": 39.9826,
+                    "longitude": 116.3086,
+                    "timestamp": "2025-07-12T11:40:10+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街 · 店C"
+                },
+                "caption": "沙拉与饮料",
+                "tags": [
+                    "美食",
+                    "饮料",
+                    "快餐"
+                ]
+            },
+            {
+                "name": "IMG_20250712_114322_05.jpg",
+                "exifInfo": {
+                    "latitude": 39.9826,
+                    "longitude": 116.3086,
+                    "timestamp": "2025-07-12T11:43:22+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街 · 店C"
+                },
+                "caption": "桌面金属托盘",
+                "tags": [
+                    "金属",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250712_115008_06.jpg",
+                "exifInfo": {
+                    "latitude": 39.9828,
+                    "longitude": 116.3088,
+                    "timestamp": "2025-07-12T11:50:08+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区快餐一条街"
+                },
+                "caption": "午餐后街景",
+                "tags": [
+                    "休闲",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250712_115932_07.jpg",
+                "exifInfo": {
+                    "latitude": 39.9829,
+                    "longitude": 116.3090,
+                    "timestamp": "2025-07-12T11:59:32+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区广场"
+                },
+                "caption": "广场休憩",
+                "tags": [
+                    "休闲",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250712_120420_08.jpg",
+                "exifInfo": {
+                    "latitude": 39.9828,
+                    "longitude": 116.3092,
+                    "timestamp": "2025-07-12T12:04:20+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "工位区"
+                },
+                "caption": "返回工位",
+                "tags": [
+                    "室内",
+                    "电脑"
+                ]
+            },
+            {
+                "name": "IMG_20250712_121030_09.jpg",
+                "exifInfo": {
+                    "latitude": 39.9827,
+                    "longitude": 116.3093,
+                    "timestamp": "2025-07-12T12:10:30+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "电梯厅"
+                },
+                "caption": "午后电梯厅",
+                "tags": [
+                    "室内",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250712_130000_10.jpg",
+                "exifInfo": {
+                    "latitude": 39.9826,
+                    "longitude": 116.3091,
+                    "timestamp": "2025-07-12T13:00:00+08:00",
+                    "city": "北京市",
+                    "district": "海淀区",
+                    "formattedAddress": "园区出口"
+                },
+                "caption": "午餐时段结束",
+                "tags": [
+                    "建筑",
+                    "标志"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E06",
+        "title": "北京 · 周末休闲（朝阳公园傍晚）",
+        "city": "北京市",
+        "province": "北京市",
+        "startTime": "2025-07-14T18:00:00+08:00",
+        "endTime": "2025-07-14T20:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250714_180005_01.jpg",
+                "exifInfo": {
+                    "latitude": 39.9188,
+                    "longitude": 116.4732,
+                    "timestamp": "2025-07-14T18:00:05+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "朝阳公园西门"
+                },
+                "caption": "公园入口与人流",
+                "tags": [
+                    "休闲",
+                    "公园",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_20250714_180310_02.jpg",
+                "exifInfo": {
+                    "latitude": 39.9189,
+                    "longitude": 116.4735,
+                    "timestamp": "2025-07-14T18:03:10+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "朝阳公园湖畔"
+                },
+                "caption": "湖面与晚霞",
+                "tags": [
+                    "风景",
+                    "晚霞",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250714_181005_03.jpg",
+                "exifInfo": {
+                    "latitude": 39.9187,
+                    "longitude": 116.4736,
+                    "timestamp": "2025-07-14T18:10:05+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "草坪区"
+                },
+                "caption": "草坪野餐与餐具",
+                "tags": [
+                    "草地",
+                    "餐具",
+                    "美食"
+                ]
+            },
+            {
+                "name": "IMG_20250714_181430_04.jpg",
+                "exifInfo": {
+                    "latitude": 39.9186,
+                    "longitude": 116.4737,
+                    "timestamp": "2025-07-14T18:14:30+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "步道树荫"
+                },
+                "caption": "树荫下的散步",
+                "tags": [
+                    "休闲",
+                    "自然"
+                ]
+            },
+            {
+                "name": "IMG_20250714_182210_05.jpg",
+                "exifInfo": {
+                    "latitude": 39.9184,
+                    "longitude": 116.4734,
+                    "timestamp": "2025-07-14T18:22:10+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "长椅一排"
+                },
+                "caption": "长椅上的聊天",
+                "tags": [
+                    "休闲",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_20250714_183005_06.jpg",
+                "exifInfo": {
+                    "latitude": 39.9183,
+                    "longitude": 116.4732,
+                    "timestamp": "2025-07-14T18:30:05+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "湖边步道"
+                },
+                "caption": "夕阳照在湖面",
+                "tags": [
+                    "风景",
+                    "晚霞"
+                ]
+            },
+            {
+                "name": "IMG_20250614_184210_07.jpg",
+                "exifInfo": {
+                    "latitude": 39.9182,
+                    "longitude": 116.4731,
+                    "timestamp": "2025-06-14T18:42:10+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "广场喷泉"
+                },
+                "caption": "喷泉与灯光",
+                "tags": [
+                    "灯光",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250614_185315_08.jpg",
+                "exifInfo": {
+                    "latitude": 39.9181,
+                    "longitude": 116.4730,
+                    "timestamp": "2025-06-14T18:53:15+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "公园入口"
+                },
+                "caption": "返回入口",
+                "tags": [
+                    "建筑",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250614_195015_09.jpg",
+                "exifInfo": {
+                    "latitude": 39.9186,
+                    "longitude": 116.4732,
+                    "timestamp": "2025-06-14T19:50:15+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "公园外街角"
+                },
+                "caption": "夜色将至",
+                "tags": [
+                    "夜晚",
+                    "街道"
+                ]
+            },
+            {
+                "name": "IMG_20250614_200000_10.jpg",
+                "exifInfo": {
+                    "latitude": 39.9187,
+                    "longitude": 116.4733,
+                    "timestamp": "2025-06-14T20:00:00+08:00",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "formattedAddress": "公园外"
+                },
+                "caption": "周末休闲收尾",
+                "tags": [
+                    "休闲",
+                    "公园"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E07",
+        "title": "深圳 · 抵达夜（福田）",
+        "city": "深圳市",
+        "province": "广东省",
+        "startTime": "2025-09-18T20:00:00+08:00",
+        "endTime": "2025-09-18T21:30:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250918_200010_01.jpg",
+                "exifInfo": {
+                    "latitude": 22.5368,
+                    "longitude": 114.0616,
+                    "timestamp": "2025-09-18T20:00:10+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "福田中心区"
+                },
+                "caption": "灯光璀璨的高楼",
+                "tags": [
+                    "灯光",
+                    "建筑",
+                    "城市"
+                ]
+            },
+            {
+                "name": "IMG_20250918_200310_02.jpg",
+                "exifInfo": {
+                    "latitude": 22.5371,
+                    "longitude": 114.0619,
+                    "timestamp": "2025-09-18T20:03:10+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "福田中心区步道"
+                },
+                "caption": "步道上的金属护栏",
+                "tags": [
+                    "金属",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250918_200700_03.jpg",
+                "exifInfo": {
+                    "latitude": 22.5373,
+                    "longitude": 114.0621,
+                    "timestamp": "2025-09-18T20:07:00+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "夜色下的广场"
+                },
+                "caption": "广场人群",
+                "tags": [
+                    "人群",
+                    "城市"
+                ]
+            },
+            {
+                "name": "IMG_20250918_201210_04.jpg",
+                "exifInfo": {
+                    "latitude": 22.5375,
+                    "longitude": 114.0623,
+                    "timestamp": "2025-09-18T20:12:10+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "商场外"
+                },
+                "caption": "商场LED屏幕",
+                "tags": [
+                    "文字",
+                    "标志",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250918_201615_05.jpg",
+                "exifInfo": {
+                    "latitude": 22.5377,
+                    "longitude": 114.0625,
+                    "timestamp": "2025-09-18T20:16:15+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "美食街入口"
+                },
+                "caption": "夜宵与餐具",
+                "tags": [
+                    "美食",
+                    "餐具",
+                    "快餐"
+                ]
+            },
+            {
+                "name": "IMG_20250618_202305_06.jpg",
+                "exifInfo": {
+                    "latitude": 22.5379,
+                    "longitude": 114.0627,
+                    "timestamp": "2025-06-18T20:23:05+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "中心区步行街"
+                },
+                "caption": "步行街的灯光",
+                "tags": [
+                    "灯光",
+                    "城市"
+                ]
+            },
+            {
+                "name": "IMG_20250618_203015_07.jpg",
+                "exifInfo": {
+                    "latitude": 22.5381,
+                    "longitude": 114.0629,
+                    "timestamp": "2025-06-18T20:30:15+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "中心区雕塑"
+                },
+                "caption": "金属材质的公共艺术",
+                "tags": [
+                    "金属",
+                    "雕塑",
+                    "艺术"
+                ]
+            },
+            {
+                "name": "IMG_20250618_204115_08.jpg",
+                "exifInfo": {
+                    "latitude": 22.5383,
+                    "longitude": 114.0631,
+                    "timestamp": "2025-06-18T20:41:15+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "中心区街角"
+                },
+                "caption": "城市夜色",
+                "tags": [
+                    "夜晚",
+                    "城市"
+                ]
+            },
+            {
+                "name": "IMG_20250618_210000_09.jpg",
+                "exifInfo": {
+                    "latitude": 22.5370,
+                    "longitude": 114.0618,
+                    "timestamp": "2025-06-18T21:00:00+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "中心区地铁站口"
+                },
+                "caption": "地铁站口的人流",
+                "tags": [
+                    "人群",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250618_213000_10.jpg",
+                "exifInfo": {
+                    "latitude": 22.5369,
+                    "longitude": 114.0617,
+                    "timestamp": "2025-06-18T21:30:00+08:00",
+                    "city": "深圳市",
+                    "district": "福田区",
+                    "formattedAddress": "福田中心区出口"
+                },
+                "caption": "抵达夜的收尾",
+                "tags": [
+                    "城市",
+                    "灯光"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E08",
+        "title": "深圳 · 海边日（深圳湾公园）",
+        "city": "深圳市",
+        "province": "广东省",
+        "startTime": "2025-09-19T09:00:00+08:00",
+        "endTime": "2025-09-19T12:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250919_090005_01.jpg",
+                "exifInfo": {
+                    "latitude": 22.5120,
+                    "longitude": 113.9340,
+                    "timestamp": "2025-09-19T09:00:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "深圳湾公园北区"
+                },
+                "caption": "海风与浅滩",
+                "tags": [
+                    "海滩",
+                    "海洋",
+                    "风景"
+                ]
+            },
+            {
+                "name": "IMG_20250919_090310_02.jpg",
+                "exifInfo": {
+                    "latitude": 22.5122,
+                    "longitude": 113.9342,
+                    "timestamp": "2025-09-19T09:03:10+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "深圳湾公园栈道"
+                },
+                "caption": "栈道上的晨跑者",
+                "tags": [
+                    "休闲",
+                    "运动",
+                    "海边"
+                ]
+            },
+            {
+                "name": "IMG_20250919_090705_03.jpg",
+                "exifInfo": {
+                    "latitude": 22.5123,
+                    "longitude": 113.9344,
+                    "timestamp": "2025-09-19T09:07:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "观景平台"
+                },
+                "caption": "对岸的桥与海面",
+                "tags": [
+                    "建筑",
+                    "海洋",
+                    "风景"
+                ]
+            },
+            {
+                "name": "IMG_20250919_091115_04.jpg",
+                "exifInfo": {
+                    "latitude": 22.5124,
+                    "longitude": 113.9346,
+                    "timestamp": "2025-09-19T09:11:15+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海边步道"
+                },
+                "caption": "礁石与海浪",
+                "tags": [
+                    "海滩",
+                    "自然"
+                ]
+            },
+            {
+                "name": "IMG_20250919_092205_05.jpg",
+                "exifInfo": {
+                    "latitude": 22.5125,
+                    "longitude": 113.9348,
+                    "timestamp": "2025-09-19T09:22:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "观景平台旁"
+                },
+                "caption": "海风里拍照的人",
+                "tags": [
+                    "人群",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250919_093015_06.jpg",
+                "exifInfo": {
+                    "latitude": 22.5126,
+                    "longitude": 113.9350,
+                    "timestamp": "2025-09-19T09:30:15+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海边咖啡车"
+                },
+                "caption": "咖啡与简餐餐具",
+                "tags": [
+                    "美食",
+                    "餐具",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20250919_094110_07.jpg",
+                "exifInfo": {
+                    "latitude": 22.5127,
+                    "longitude": 113.9352,
+                    "timestamp": "2025-09-19T09:41:10+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海滩浅水区"
+                },
+                "caption": "脚印与湿沙",
+                "tags": [
+                    "海滩",
+                    "自然"
+                ]
+            },
+            {
+                "name": "IMG_20250919_100305_08.jpg",
+                "exifInfo": {
+                    "latitude": 22.5128,
+                    "longitude": 113.9354,
+                    "timestamp": "2025-09-19T10:03:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "观景台二层"
+                },
+                "caption": "远望海面与云层",
+                "tags": [
+                    "风景",
+                    "海洋",
+                    "云"
+                ]
+            },
+            {
+                "name": "IMG_20250919_110250_09.jpg",
+                "exifInfo": {
+                    "latitude": 22.5129,
+                    "longitude": 113.9356,
+                    "timestamp": "2025-09-19T11:02:50+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海边小食摊"
+                },
+                "caption": "海鲜小食与餐具",
+                "tags": [
+                    "海鲜",
+                    "美食",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20250919_120000_10.jpg",
+                "exifInfo": {
+                    "latitude": 22.5120,
+                    "longitude": 113.9340,
+                    "timestamp": "2025-09-19T12:00:00+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "深圳湾公园出口"
+                },
+                "caption": "海边日收尾",
+                "tags": [
+                    "休闲",
+                    "海边"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E09",
+        "title": "深圳 · 科技园步行（南山）",
+        "city": "深圳市",
+        "province": "广东省",
+        "startTime": "2025-09-20T10:00:00+08:00",
+        "endTime": "2025-09-20T12:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20250920_100010_01.jpg",
+                "exifInfo": {
+                    "latitude": 22.5289,
+                    "longitude": 113.9390,
+                    "timestamp": "2025-09-20T10:00:10+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海岸城北广场"
+                },
+                "caption": "广场与金属装置艺术",
+                "tags": [
+                    "金属",
+                    "雕塑",
+                    "艺术"
+                ]
+            },
+            {
+                "name": "IMG_20250920_100315_02.jpg",
+                "exifInfo": {
+                    "latitude": 22.5288,
+                    "longitude": 113.9392,
+                    "timestamp": "2025-09-20T10:03:15+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海岸城主门"
+                },
+                "caption": "商场外立面",
+                "tags": [
+                    "建筑",
+                    "商场",
+                    "标志"
+                ]
+            },
+            {
+                "name": "IMG_20250920_100700_03.jpg",
+                "exifInfo": {
+                    "latitude": 22.5287,
+                    "longitude": 113.9394,
+                    "timestamp": "2025-09-20T10:07:00+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "科兴科学园北侧"
+                },
+                "caption": "园区连桥",
+                "tags": [
+                    "建筑",
+                    "科技",
+                    "金属"
+                ]
+            },
+            {
+                "name": "IMG_20250920_101115_04.jpg",
+                "exifInfo": {
+                    "latitude": 22.5286,
+                    "longitude": 113.9396,
+                    "timestamp": "2025-09-20T10:11:15+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "园区步道"
+                },
+                "caption": "树荫与步道",
+                "tags": [
+                    "休闲",
+                    "树木",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250920_102205_05.jpg",
+                "exifInfo": {
+                    "latitude": 22.5285,
+                    "longitude": 113.9398,
+                    "timestamp": "2025-09-20T10:22:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "连桥下休息区"
+                },
+                "caption": "简餐与餐具",
+                "tags": [
+                    "美食",
+                    "餐具",
+                    "快餐"
+                ]
+            },
+            {
+                "name": "IMG_20250920_103015_06.jpg",
+                "exifInfo": {
+                    "latitude": 22.5284,
+                    "longitude": 113.9400,
+                    "timestamp": "2025-09-20T10:30:15+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "园区雕塑旁"
+                },
+                "caption": "金属线条的公共艺术",
+                "tags": [
+                    "金属",
+                    "雕塑"
+                ]
+            },
+            {
+                "name": "IMG_20250920_104110_07.jpg",
+                "exifInfo": {
+                    "latitude": 22.5283,
+                    "longitude": 113.9402,
+                    "timestamp": "2025-09-20T10:41:10+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "园区步道转角"
+                },
+                "caption": "转角光影",
+                "tags": [
+                    "光影",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250920_110305_08.jpg",
+                "exifInfo": {
+                    "latitude": 22.5282,
+                    "longitude": 113.9404,
+                    "timestamp": "2025-09-20T11:03:05+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "园区连桥二层"
+                },
+                "caption": "俯瞰人群",
+                "tags": [
+                    "人群",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250920_112250_09.jpg",
+                "exifInfo": {
+                    "latitude": 22.5281,
+                    "longitude": 113.9406,
+                    "timestamp": "2025-09-20T11:22:50+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "园区休憩区"
+                },
+                "caption": "午前休息",
+                "tags": [
+                    "休闲",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20250920_120000_10.jpg",
+                "exifInfo": {
+                    "latitude": 22.5289,
+                    "longitude": 113.9390,
+                    "timestamp": "2025-09-20T12:00:00+08:00",
+                    "city": "深圳市",
+                    "district": "南山区",
+                    "formattedAddress": "海岸城北广场出口"
+                },
+                "caption": "科园步行收尾",
+                "tags": [
+                    "建筑",
+                    "标志"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E10",
+        "title": "西昌 · 回家团聚（凉山彝族自治州）",
+        "city": "西昌市",
+        "province": "四川省",
+        "startTime": "2025-11-26T10:00:00+08:00",
+        "endTime": "2025-11-26T12:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20251126_100010_01.jpg",
+                "exifInfo": {
+                    "latitude": 27.8940,
+                    "longitude": 102.2640,
+                    "timestamp": "2025-11-26T10:00:10+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "家门口 · 凉山彝族自治州西昌市"
+                },
+                "caption": "家门外的小路",
+                "tags": [
+                    "家庭",
+                    "建筑",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20251126_100315_02.jpg",
+                "exifInfo": {
+                    "latitude": 27.8942,
+                    "longitude": 102.2642,
+                    "timestamp": "2025-11-26T10:03:15+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "客厅"
+                },
+                "caption": "客厅的团聚",
+                "tags": [
+                    "家庭",
+                    "人群",
+                    "室内"
+                ]
+            },
+            {
+                "name": "IMG_20251126_100700_03.jpg",
+                "exifInfo": {
+                    "latitude": 27.8941,
+                    "longitude": 102.2641,
+                    "timestamp": "2025-11-26T10:07:00+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "餐桌旁"
+                },
+                "caption": "餐桌上的餐具与家常菜",
+                "tags": [
+                    "餐具",
+                    "美食",
+                    "家庭"
+                ]
+            },
+            {
+                "name": "IMG_20251126_101115_04.jpg",
+                "exifInfo": {
+                    "latitude": 27.8943,
+                    "longitude": 102.2643,
+                    "timestamp": "2025-11-26T10:11:15+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "厨房"
+                },
+                "caption": "厨房里的热腾腾",
+                "tags": [
+                    "厨房",
+                    "美食"
+                ]
+            },
+            {
+                "name": "IMG_20251126_102205_05.jpg",
+                "exifInfo": {
+                    "latitude": 27.8944,
+                    "longitude": 102.2644,
+                    "timestamp": "2025-11-26T10:22:05+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "院子"
+                },
+                "caption": "院子里的阳光",
+                "tags": [
+                    "休闲",
+                    "自然"
+                ]
+            },
+            {
+                "name": "IMG_20251126_103015_06.jpg",
+                "exifInfo": {
+                    "latitude": 27.8945,
+                    "longitude": 102.2645,
+                    "timestamp": "2025-11-26T10:30:15+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "家门口小路"
+                },
+                "caption": "小路与花草",
+                "tags": [
+                    "自然",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20251126_104110_07.jpg",
+                "exifInfo": {
+                    "latitude": 27.8946,
+                    "longitude": 102.2646,
+                    "timestamp": "2025-11-26T10:41:10+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "餐桌旁"
+                },
+                "caption": "水果与甜点",
+                "tags": [
+                    "美食",
+                    "甜点",
+                    "餐具"
+                ]
+            },
+            {
+                "name": "IMG_20251126_110305_08.jpg",
+                "exifInfo": {
+                    "latitude": 27.8947,
+                    "longitude": 102.2647,
+                    "timestamp": "2025-11-26T11:03:05+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "客厅"
+                },
+                "caption": "合影时刻",
+                "tags": [
+                    "人像",
+                    "家庭"
+                ]
+            },
+            {
+                "name": "IMG_20251126_112250_09.jpg",
+                "exifInfo": {
+                    "latitude": 27.8948,
+                    "longitude": 102.2648,
+                    "timestamp": "2025-11-26T11:22:50+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "院子"
+                },
+                "caption": "晾晒的金属栏杆",
+                "tags": [
+                    "金属",
+                    "家庭"
+                ]
+            },
+            {
+                "name": "IMG_20251126_120000_10.jpg",
+                "exifInfo": {
+                    "latitude": 27.8940,
+                    "longitude": 102.2640,
+                    "timestamp": "2025-11-26T12:00:00+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "家门口 · 出口"
+                },
+                "caption": "回家团聚收尾",
+                "tags": [
+                    "家庭",
+                    "休闲"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E11",
+        "title": "绵阳 · 2022 毕业季（高中）",
+        "city": "绵阳市",
+        "province": "四川省",
+        "startTime": "2022-06-24T14:30:00+08:00",
+        "endTime": "2022-06-24T18:10:00+08:00",
+        "images": [
+            {
+                "name": "IMG_20220624_143005_01.jpg",
+                "exifInfo": {
+                    "latitude": 31.4679,
+                    "longitude": 104.6796,
+                    "timestamp": "2022-06-24T14:30:05+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 校门"
+                },
+                "caption": "毕业季校门口第一张合影",
+                "tags": [
+                    "学校",
+                    "人群",
+                    "建筑",
+                    "微笑"
+                ]
+            },
+            {
+                "name": "IMG_20220624_143420_02.jpg",
+                "exifInfo": {
+                    "latitude": 31.4681,
+                    "longitude": 104.6798,
+                    "timestamp": "2022-06-24T14:34:20+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 主教学楼前"
+                },
+                "caption": "教学楼前的毕业横幅与标语",
+                "tags": [
+                    "学校",
+                    "文字",
+                    "标志",
+                    "建筑"
+                ]
+            },
+            {
+                "name": "IMG_20220624_144110_03.jpg",
+                "exifInfo": {
+                    "latitude": 31.4682,
+                    "longitude": 104.6797,
+                    "timestamp": "2022-06-24T14:41:10+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 教室走廊"
+                },
+                "caption": "走廊尽头的窗光与同学背影",
+                "tags": [
+                    "教室",
+                    "学校",
+                    "室内",
+                    "光影"
+                ]
+            },
+            {
+                "name": "IMG_20220624_144905_04.jpg",
+                "exifInfo": {
+                    "latitude": 31.4683,
+                    "longitude": 104.6796,
+                    "timestamp": "2022-06-24T14:49:05+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 教室"
+                },
+                "caption": "黑板上的留言与粉笔字",
+                "tags": [
+                    "教室",
+                    "学校",
+                    "文字",
+                    "室内"
+                ]
+            },
+            {
+                "name": "IMG_20220624_145320_05.jpg",
+                "exifInfo": {
+                    "latitude": 31.4684,
+                    "longitude": 104.6795,
+                    "timestamp": "2022-06-24T14:53:20+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 教室"
+                },
+                "caption": "教室里最后一次大合照",
+                "tags": [
+                    "教室",
+                    "学校",
+                    "人群",
+                    "微笑"
+                ]
+            },
+            {
+                "name": "IMG_20220624_150210_06.jpg",
+                "exifInfo": {
+                    "latitude": 31.4686,
+                    "longitude": 104.6793,
+                    "timestamp": "2022-06-24T15:02:10+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 操场"
+                },
+                "caption": "操场跑道边的毕业帽与花束",
+                "tags": [
+                    "学校",
+                    "操场",
+                    "花朵",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20220624_151055_07.jpg",
+                "exifInfo": {
+                    "latitude": 31.4685,
+                    "longitude": 104.6792,
+                    "timestamp": "2022-06-24T15:10:55+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 看台"
+                },
+                "caption": "看台上的合影与欢呼",
+                "tags": [
+                    "学校",
+                    "人群",
+                    "运动",
+                    "微笑"
+                ]
+            },
+            {
+                "name": "IMG_20220624_152040_08.jpg",
+                "exifInfo": {
+                    "latitude": 31.4680,
+                    "longitude": 104.6799,
+                    "timestamp": "2022-06-24T15:20:40+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 食堂"
+                },
+                "caption": "毕业聚餐的快餐与餐具",
+                "tags": [
+                    "学校",
+                    "美食",
+                    "餐具",
+                    "快餐"
+                ]
+            },
+            {
+                "name": "IMG_20220624_154015_09.jpg",
+                "exifInfo": {
+                    "latitude": 31.4678,
+                    "longitude": 104.6801,
+                    "timestamp": "2022-06-24T15:40:15+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 礼堂入口"
+                },
+                "caption": "礼堂入口排队入场",
+                "tags": [
+                    "学校",
+                    "人群",
+                    "建筑",
+                    "活动"
+                ]
+            },
+            {
+                "name": "IMG_20220624_160520_10.jpg",
+                "exifInfo": {
+                    "latitude": 31.4677,
+                    "longitude": 104.6800,
+                    "timestamp": "2022-06-24T16:05:20+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 礼堂内"
+                },
+                "caption": "典礼现场的灯光与舞台",
+                "tags": [
+                    "学校",
+                    "灯光",
+                    "舞台",
+                    "活动"
+                ]
+            },
+            {
+                "name": "IMG_20220624_170110_11.jpg",
+                "exifInfo": {
+                    "latitude": 31.4681,
+                    "longitude": 104.6797,
+                    "timestamp": "2022-06-24T17:01:10+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 教室门口"
+                },
+                "caption": "教室门口的最后回望",
+                "tags": [
+                    "教室",
+                    "学校",
+                    "建筑",
+                    "休闲"
+                ]
+            },
+            {
+                "name": "IMG_20220624_181000_12.jpg",
+                "exifInfo": {
+                    "latitude": 31.4679,
+                    "longitude": 104.6796,
+                    "timestamp": "2022-06-24T18:10:00+08:00",
+                    "city": "绵阳市",
+                    "district": "涪城区",
+                    "formattedAddress": "四川省绵阳市 · 某中学 · 校门外"
+                },
+                "caption": "夕阳下的毕业季收尾",
+                "tags": [
+                    "学校",
+                    "日落",
+                    "休闲",
+                    "微笑"
+                ]
+            }
+        ]
+    },
+    {
+        "eventId": "E12",
+        "title": "西昌 · 建昌古城过年（春节）",
+        "city": "西昌市",
+        "province": "四川省",
+        "startTime": "2026-02-06T10:00:00+08:00",
+        "endTime": "2026-02-06T14:00:00+08:00",
+        "images": [
+            {
+                "name": "IMG_1163.jpg",
+                "exifInfo": {
+                    "latitude": 27.8940,
+                    "longitude": 102.2640,
+                    "timestamp": "2026-02-06T10:00:10+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 南门"
+                },
+                "caption": "新年傍晚建昌古城城门",
+                "tags": [
+                    "节日",
+                    "建筑",
+                    "灯光"
+                ]
+            },
+            {
+                "name": "IMG_1164.jpg",
+                "exifInfo": {
+                    "latitude": 27.8942,
+                    "longitude": 102.2642,
+                    "timestamp": "2026-02-06T10:11:15+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 主街"
+                },
+                "caption": "古城路边房子挂灯笼，行人很多，天色渐晚",
+                "tags": [
+                    "节日",
+                    "灯光",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_1168.jpg",
+                "exifInfo": {
+                    "latitude": 27.8944,
+                    "longitude": 102.2644,
+                    "timestamp": "2026-02-06T11:03:05+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 美食街"
+                },
+                "caption": "手拿橙汁，标签有西昌",
+                "tags": [
+                    "美食",
+                    "建筑",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_1169.jpg",
+                "exifInfo": {
+                    "latitude": 27.8945,
+                    "longitude": 102.2645,
+                    "timestamp": "2026-02-06T11:22:50+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 小吃摊位"
+                },
+                "caption": "古城形状的甜品摆在盘子上，背后是古城",
+                "tags": [
+                    "餐具",
+                    "美食",
+                    "节日"
+                ]
+            },
+            {
+                "name": "IMG_1171.jpg",
+                "exifInfo": {
+                    "latitude": 27.8946,
+                    "longitude": 102.2646,
+                    "timestamp": "2026-02-06T12:00:00+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 城墙步道"
+                },
+                "caption": "路边面包店橱窗当中面包很多",
+                "tags": [
+                    "节日",
+                    "休闲",
+                    "人群"
+                ]
+            },
+            {
+                "name": "PBAH9497.jpg",
+                "exifInfo": {
+                    "latitude": 27.8947,
+                    "longitude": 102.2647,
+                    "timestamp": "2026-02-06T13:03:05+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 城隍庙广场"
+                },
+                "caption": "橱窗内的蛋挞面包小吃",
+                "tags": [
+                    "人像",
+                    "节日",
+                    "微笑"
+                ]
+            },
+            {
+                "name": "IMG_1165.jpg",
+                "exifInfo": {
+                    "latitude": 27.8940,
+                    "longitude": 102.2640,
+                    "timestamp": "2026-02-06T14:00:00+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 南门外广场"
+                },
+                "caption": "夜晚的古城，灯火通明，人群很多",
+                "tags": [
+                    "节日",
+                    "建筑",
+                    "人群"
+                ]
+            },
+            {
+                "name": "IMG_1174.jpg",
+                "exifInfo": {
+                    "latitude": 27.8940,
+                    "longitude": 102.2640,
+                    "timestamp": "2026-02-06T14:00:00+08:00",
+                    "city": "西昌市",
+                    "district": "西昌市",
+                    "formattedAddress": "建昌古城 · 南门外广场"
+                },
+                "caption": "人群散去，古城静谧，瓦房挂灯笼，静谧",
+                "tags": [
+                    "节日",
+                    "建筑",
+                    "人群"
+                ]
+            }
+        ]
+    }
+]
