@@ -64,7 +64,7 @@ CLAUDE.md
 openspec/
 
 # test
-/img
+
 
 # local runtime secrets
 /env/*.json
