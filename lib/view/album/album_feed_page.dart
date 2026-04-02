@@ -1,10 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-import '../../models/event.dart';
+import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
+
 import '../../service/event/event_service.dart';
 import '../../service/photo/photo_service.dart';
 import '../widgets/ai_backdrop.dart';
 import '../../widgets/lazy_load_image.dart';
+import '../../models/entity/event_entity.dart';
+import '../../models/entity/photo_entity.dart';
 import 'event_detail_page.dart';
 
 class AlbumFeedPage extends StatefulWidget {
@@ -15,7 +19,8 @@ class AlbumFeedPage extends StatefulWidget {
 }
 
 class _AlbumFeedPageState extends State<AlbumFeedPage> {
-  Stream<List<Event>>? _eventsStream;
+  Stream<List<EventEntity>>? _eventsStream;
+  final Map<String, String> _coverPathCache = <String, String>{};
 
   @override
   void initState() {
@@ -24,14 +29,37 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
   }
 
   void _initStream() {
+    _eventsStream = EventService().watchEvents();
+  }
+
+  Future<String> _resolveCoverPath(EventEntity event) async {
+    final coverId = event.photoIds.isEmpty ? null : event.photoIds.first;
+    if (coverId == null) {
+      return '';
+    }
+
+    final cacheKey = '${event.id}:$coverId';
+    final cached = _coverPathCache[cacheKey];
+    if (cached != null) {
+      return cached;
+    }
+
     final isar = PhotoService().isar;
-    _eventsStream = EventService().watchEvents().asyncMap((entities) async {
-      final uiEvents = <Event>[];
-      for (final e in entities) {
-        uiEvents.add(await e.toUIModel(isar));
-      }
-      return uiEvents;
-    });
+    final photo = await isar.collection<PhotoEntity>().get(coverId);
+    if (photo == null) {
+      return '';
+    }
+
+    if (photo.path.isNotEmpty && File(photo.path).existsSync()) {
+      _coverPathCache[cacheKey] = photo.path;
+      return photo.path;
+    }
+
+    final asset = await AssetEntity.fromId(photo.assetId);
+    final file = await asset?.file;
+    final resolved = file?.path ?? photo.path;
+    _coverPathCache[cacheKey] = resolved;
+    return resolved;
   }
 
   @override
@@ -60,7 +88,7 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                 const SizedBox(width: 8),
               ],
             ),
-            StreamBuilder<List<Event>>(
+            StreamBuilder<List<EventEntity>>(
               stream: _eventsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -77,7 +105,7 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                   );
                 }
 
-                final events = snapshot.data ?? [];
+                final events = snapshot.data ?? const <EventEntity>[];
                 if (events.isEmpty) {
                   return SliverFillRemaining(
                     child: Center(
@@ -100,7 +128,10 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final event = events[index];
-                      return _EventFeedCard(event: event);
+                      return _EventFeedCard(
+                        event: event,
+                        coverPathFuture: _resolveCoverPath(event),
+                      );
                     }, childCount: events.length),
                   ),
                 );
@@ -168,21 +199,48 @@ class _AlbumFeedPageState extends State<AlbumFeedPage> {
 }
 
 class _EventFeedCard extends StatelessWidget {
-  final Event event;
+  final EventEntity event;
+  final Future<String> coverPathFuture;
 
-  const _EventFeedCard({required this.event});
+  const _EventFeedCard({required this.event, required this.coverPathFuture});
+
+  String _displayTitle() {
+    final themes = event.aiThemes;
+    if (themes != null && themes.isNotEmpty) {
+      return themes.first;
+    }
+    return event.title;
+  }
+
+  String _statusText() {
+    if (event.photoCount <= 0) {
+      return 'AI 待分析';
+    }
+    final analyzed = event.analyzedPhotoCount;
+    final total = event.photoCount;
+    if (analyzed >= total) {
+      final themes = event.aiThemes;
+      if (themes != null && themes.isNotEmpty) {
+        return 'AI 发现 ${themes.length} 个主题';
+      }
+      return 'AI 已分析完成';
+    }
+    if (analyzed > 0) {
+      return 'AI 分析中 $analyzed/$total';
+    }
+    return 'AI 待分析';
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (event.photos.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
-
-    final coverPhoto = event.photos.first;
+    final title = _displayTitle();
+    final status = _statusText();
 
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => EventDetailPage(event: event)),
+          MaterialPageRoute(builder: (_) => EventDetailPage(eventId: event.id)),
         );
       },
       child: Container(
@@ -204,15 +262,24 @@ class _EventFeedCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Hero Cover
-              Hero(
-                tag: 'event_cover_${event.id}',
-                child: LazyLoadImage(
-                  path: coverPhoto.path,
-                  fit: BoxFit.cover,
-                  errorWidget: const ColoredBox(color: Color(0xFFE5E5EA)),
-                  thumbnailWidth: 600,
-                  thumbnailHeight: 400,
-                ),
+              FutureBuilder<String>(
+                future: coverPathFuture,
+                builder: (context, snapshot) {
+                  final coverPath = snapshot.data;
+                  if (coverPath == null || coverPath.isEmpty) {
+                    return const ColoredBox(color: Color(0xFFE5E5EA));
+                  }
+                  return Hero(
+                    tag: 'event_cover_${event.id}',
+                    child: LazyLoadImage(
+                      path: coverPath,
+                      fit: BoxFit.cover,
+                      errorWidget: const ColoredBox(color: Color(0xFFE5E5EA)),
+                      thumbnailWidth: 600,
+                      thumbnailHeight: 400,
+                    ),
+                  );
+                },
               ),
               Positioned(
                 left: 16,
@@ -240,10 +307,7 @@ class _EventFeedCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          event.isAiAnalysisComplete &&
-                                  event.aiThemes.isNotEmpty
-                              ? 'AI 发现 ${event.aiThemes.length} 个主题'
-                              : event.aiAnalysisStatusText,
+                          status,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -283,7 +347,7 @@ class _EventFeedCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      event.displayTitle,
+                      title,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -294,17 +358,6 @@ class _EventFeedCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    if (event.isAiAnalysisInProgress) ...[
-                      Text(
-                        event.aiAnalysisStatusText,
-                        style: TextStyle(
-                          color: theme.colorScheme.secondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     // 高级场景标签
                     if (event.tags.isNotEmpty) ...[
                       Wrap(

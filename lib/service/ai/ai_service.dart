@@ -60,18 +60,23 @@ class AIService {
         }
 
         log('开始 AI 视觉分析，本批次: ${photos.length} 张', name: 'AIService');
-
-        for (final photo in photos) {
-          final result = await _analyzeSinglePhoto(
-            photo: photo,
-            imageLabeler: imageLabeler,
-            faceDetector: faceDetector,
-            isar: isar,
-          );
+        final results = await Future.wait(
+          photos.map(
+            (photo) => EventService.backgroundPool.withPermit(
+              () => _analyzeSinglePhoto(
+                photo: photo,
+                imageLabeler: imageLabeler,
+                faceDetector: faceDetector,
+                isar: isar,
+              ),
+              timeout: const Duration(seconds: 30),
+            ),
+          ),
+        );
+        for (final result in results) {
           _collectAffectedEventId(affectedEventIds, result.eventId);
-
-          totalAnalyzed++;
         }
+        totalAnalyzed += results.length;
 
         if (affectedEventIds.isNotEmpty) {
           await EventService().refreshEventSmartInfo(affectedEventIds.toList());
@@ -151,52 +156,67 @@ class AIService {
       return _AiAnalysisResult(eventId: photo.eventId);
     }
 
-    try {
-      final inputImage = InputImage.fromFile(file);
-      final labels = await imageLabeler.processImage(inputImage);
-      final validTags = labels
-          .map((label) => AITagDictionary.translate(label.label))
-          .toList();
+    const maxRetries = 3;
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final inputImage = InputImage.fromFile(file);
+        final labels = await imageLabeler.processImage(inputImage);
+        final validTags = labels
+            .map((label) => AITagDictionary.translate(label.label))
+            .toList();
 
-      final faces = await faceDetector.processImage(inputImage);
-      final faceCount = faces.length;
-      var maxSmileProb = 0.0;
-      for (final face in faces) {
-        if (face.smilingProbability != null &&
-            face.smilingProbability! > maxSmileProb) {
-          maxSmileProb = face.smilingProbability!;
+        final faces = await faceDetector.processImage(inputImage);
+        final faceCount = faces.length;
+        var maxSmileProb = 0.0;
+        for (final face in faces) {
+          if (face.smilingProbability != null &&
+              face.smilingProbability! > maxSmileProb) {
+            maxSmileProb = face.smilingProbability!;
+          }
         }
+
+        final joyScore = AIScoreHelper.calculateJoyScore(
+          faceCount: faceCount,
+          maxSmileProb: maxSmileProb,
+          tags: validTags,
+        );
+
+        await _markAsAnalyzed(
+          photo.id,
+          validTags,
+          faceCount,
+          maxSmileProb,
+          joyScore,
+          isar,
+        );
+
+        final fileName = photo.path.split('/').last;
+        log(
+          '[AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}',
+          name: 'AIService',
+        );
+        return _AiAnalysisResult(eventId: photo.eventId);
+      } catch (e) {
+        if (attempt == maxRetries) {
+          await _markFailedAsAnalyzed(
+            photoId: photo.id,
+            reason: "AI 分析失败: $e",
+            isar: isar,
+          );
+          return _AiAnalysisResult(eventId: photo.eventId);
+        }
+        await Future<void>.delayed(
+          Duration(milliseconds: 200 * (1 << attempt)),
+        );
       }
-
-      final joyScore = AIScoreHelper.calculateJoyScore(
-        faceCount: faceCount,
-        maxSmileProb: maxSmileProb,
-        tags: validTags,
-      );
-
-      await _markAsAnalyzed(
-        photo.id,
-        validTags,
-        faceCount,
-        maxSmileProb,
-        joyScore,
-        isar,
-      );
-
-      final fileName = photo.path.split('/').last;
-      log(
-        '[AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}',
-        name: 'AIService',
-      );
-      return _AiAnalysisResult(eventId: photo.eventId);
-    } catch (e) {
-      await _markFailedAsAnalyzed(
-        photoId: photo.id,
-        reason: "AI 分析失败: $e",
-        isar: isar,
-      );
-      return _AiAnalysisResult(eventId: photo.eventId);
     }
+
+    await _markFailedAsAnalyzed(
+      photoId: photo.id,
+      reason: "AI 分析失败: 未知错误",
+      isar: isar,
+    );
+    return _AiAnalysisResult(eventId: photo.eventId);
   }
 
   /// 失败兜底策略：将照片标记为已分析，避免后续批处理无限重试同一张失败照片。

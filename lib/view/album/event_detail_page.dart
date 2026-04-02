@@ -1,17 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
-import '../../models/vo/photo.dart';
 import '../../models/entity/event_entity.dart';
+import '../../models/vo/photo.dart';
 import '../../service/photo/photo_service.dart';
 import '../widgets/ai_backdrop.dart';
 import '../../widgets/lazy_load_image.dart';
 import 'widgets/story_creation_sheet.dart';
 
 class EventDetailPage extends StatefulWidget {
-  final Event event;
+  final int eventId;
+  final Event? initialEvent;
 
-  const EventDetailPage({super.key, required this.event});
+  const EventDetailPage({super.key, required this.eventId, this.initialEvent});
+
+  factory EventDetailPage.fromEvent({Key? key, required Event event}) {
+    return EventDetailPage(
+      key: key,
+      eventId: int.tryParse(event.id) ?? 0,
+      initialEvent: event,
+    );
+  }
 
   @override
   State<EventDetailPage> createState() => _EventDetailPageState();
@@ -20,12 +31,51 @@ class EventDetailPage extends StatefulWidget {
 class _EventDetailPageState extends State<EventDetailPage> {
   late final Set<String> _selectedPhotoIds;
   String? _editedTitle;
+  Event? _event;
+  StreamSubscription<EventEntity?>? _eventSub;
 
   @override
   void initState() {
     super.initState();
+    _event = widget.initialEvent;
     // Default to selecting all photos
-    _selectedPhotoIds = widget.event.photos.map((p) => p.id).toSet();
+    _selectedPhotoIds = _event?.photos.map((p) => p.id).toSet() ?? <String>{};
+    _bindEventStream();
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    super.dispose();
+  }
+
+  void _bindEventStream() {
+    if (widget.eventId <= 0) {
+      return;
+    }
+
+    final isar = PhotoService().isar;
+    _eventSub = isar
+        .collection<EventEntity>()
+        .watchObject(widget.eventId, fireImmediately: true)
+        .listen((entity) async {
+          if (entity == null) {
+            return;
+          }
+          final ui = await entity.toUIModel(isar);
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            final wasEmpty = _event == null && _selectedPhotoIds.isEmpty;
+            _event = ui;
+            final currentIds = ui.photos.map((p) => p.id).toSet();
+            _selectedPhotoIds.removeWhere((id) => !currentIds.contains(id));
+            if (wasEmpty) {
+              _selectedPhotoIds.addAll(currentIds);
+            }
+          });
+        });
   }
 
   void _toggleSelection(Photo photo) {
@@ -39,7 +89,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void _showStoryCreationSheet() {
-    final selectedPhotos = widget.event.photos
+    final event = _event;
+    if (event == null) {
+      return;
+    }
+
+    final selectedPhotos = event.photos
         .where((p) => _selectedPhotoIds.contains(p.id))
         .toList();
 
@@ -48,17 +103,20 @@ class _EventDetailPageState extends State<EventDetailPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StoryCreationSheet(
-        event: widget.event,
-        selectedPhotos: selectedPhotos.isEmpty
-            ? widget.event.photos
-            : selectedPhotos,
+        event: event,
+        selectedPhotos: selectedPhotos.isEmpty ? event.photos : selectedPhotos,
       ),
     );
   }
 
   Future<void> _editTitle() async {
+    final event = _event;
+    if (event == null) {
+      return;
+    }
+
     final controller = TextEditingController(
-      text: _editedTitle ?? widget.event.displayTitle,
+      text: _editedTitle ?? event.displayTitle,
     );
     final newTitle = await showDialog<String>(
       context: context,
@@ -90,14 +148,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
       return;
     }
 
-    final id = int.tryParse(widget.event.id);
-    if (id == null) {
-      return;
-    }
-
     final isar = PhotoService().isar;
     await isar.writeTxn(() async {
-      final latest = await isar.collection<EventEntity>().get(id);
+      final latest = await isar.collection<EventEntity>().get(widget.eventId);
       if (latest == null) {
         return;
       }
@@ -117,11 +170,16 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void _toggleSelectAll() {
+    final event = _event;
+    if (event == null) {
+      return;
+    }
+
     setState(() {
-      if (_selectedPhotoIds.length == widget.event.photos.length) {
+      if (_selectedPhotoIds.length == event.photos.length) {
         _selectedPhotoIds.clear();
       } else {
-        _selectedPhotoIds.addAll(widget.event.photos.map((p) => p.id));
+        _selectedPhotoIds.addAll(event.photos.map((p) => p.id));
       }
     });
   }
@@ -129,9 +187,24 @@ class _EventDetailPageState extends State<EventDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final coverPhoto = widget.event.photos.first;
+    final event = _event;
+    if (event == null || event.photos.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: AIBackdrop(
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+    }
 
-    final displayTitle = _editedTitle ?? widget.event.displayTitle;
+    final coverPhoto = event.photos.first;
+
+    final displayTitle = _editedTitle ?? event.displayTitle;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -167,7 +240,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   ),
                   onPressed: _toggleSelectAll,
                   child: Text(
-                    _selectedPhotoIds.length == widget.event.photos.length
+                    _selectedPhotoIds.length == event.photos.length
                         ? '取消全选'
                         : '全选',
                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -202,7 +275,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   fit: StackFit.expand,
                   children: [
                     Hero(
-                      tag: 'event_cover_${widget.event.id}',
+                      tag: 'event_cover_${event.id}',
                       child: LazyLoadImage(
                         path: coverPhoto.path,
                         fit: BoxFit.cover,
@@ -232,9 +305,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                widget.event.isAiAnalysisComplete
-                                    ? '已选择 ${_selectedPhotoIds.length}/${widget.event.photos.length} 张照片，可直接生成 AI 故事。'
-                                    : '${widget.event.aiAnalysisStatusText}，已选择 ${_selectedPhotoIds.length}/${widget.event.photos.length} 张照片。',
+                                event.isAiAnalysisComplete
+                                    ? '已选择 ${_selectedPhotoIds.length}/${event.photos.length} 张照片，可直接生成 AI 故事。'
+                                    : '${event.aiAnalysisStatusText}，已选择 ${_selectedPhotoIds.length}/${event.photos.length} 张照片。',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -277,7 +350,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   crossAxisSpacing: 6,
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final photo = widget.event.photos[index];
+                  final photo = event.photos[index];
                   final isSelected = _selectedPhotoIds.contains(photo.id);
 
                   return GestureDetector(
@@ -316,7 +389,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       ),
                     ),
                   );
-                }, childCount: widget.event.photos.length),
+                }, childCount: event.photos.length),
               ),
             ),
             const SliverPadding(padding: EdgeInsets.only(bottom: 100)),

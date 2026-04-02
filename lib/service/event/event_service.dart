@@ -7,6 +7,7 @@ import '../ai/ai_service.dart';
 import '../../models/entity/event_entity.dart';
 import '../../utils/event/event_cluster_helper.dart';
 import '../../utils/event/event_festival_rules.dart';
+import '../../utils/concurrency/concurrency_pool.dart';
 import 'event_clustering_service.dart';
 import 'event_location_service.dart';
 import 'event_smart_info_service.dart';
@@ -42,16 +43,21 @@ class EventService {
   static const int minPhotosForDisplay = 5;
   static const bool _useIncrementalEventUpdate = true;
   static const int _topTagLimit = 5;
+  static final ConcurrencyPool backgroundPool = ConcurrencyPool(
+    maxConcurrent: 5,
+  );
 
   final EventClusteringService _clusteringService =
       const EventClusteringService();
   late final EventLocationService _locationService = EventLocationService(
     amapWebKey: _amapWebKey,
     minPhotosForDisplay: minPhotosForDisplay,
+    pool: backgroundPool,
   );
   late final EventSmartInfoService _smartInfoService = EventSmartInfoService(
     minPhotosForDisplay: minPhotosForDisplay,
     topTagLimit: _topTagLimit,
+    pool: backgroundPool,
   );
   bool _isAiEnhancementRunning = false;
   final Set<int> _pendingAiEventIds = <int>{};
@@ -116,16 +122,47 @@ class EventService {
     await _validateEventPhotoConsistency(execution.affectedEventIds);
 
     // 只解析受影响事件，避免全量刷地址造成不必要耗时与配额消耗。
-    _locationService.resolveEventLocations(
-      isar: isar,
-      onlyEventIds: execution.affectedEventIds,
+    unawaited(
+      _locationService.resolveEventLocations(
+        isar: isar,
+        onlyEventIds: execution.affectedEventIds,
+      ),
     );
-    _locationService.resolvePhotoLocationsForVisibleEvents(
-      isar: isar,
-      onlyEventIds: execution.affectedEventIds,
+    unawaited(
+      _locationService.resolvePhotoLocationsForVisibleEvents(
+        isar: isar,
+        onlyEventIds: execution.affectedEventIds,
+      ),
     );
 
     unawaited(_scheduleAiEnhancement(execution.affectedEventIds));
+  }
+
+  Future<void> resumePostProcessing({Set<int>? onlyEventIds}) async {
+    final isar = PhotoService().isar;
+    final targetEventIds = onlyEventIds ?? await _loadVisibleEventIds(isar);
+    if (targetEventIds.isEmpty) {
+      return;
+    }
+
+    unawaited(
+      _locationService.resolveEventLocations(
+        isar: isar,
+        onlyEventIds: targetEventIds,
+      ),
+    );
+    unawaited(
+      _locationService.resolvePhotoLocationsForVisibleEvents(
+        isar: isar,
+        onlyEventIds: targetEventIds,
+      ),
+    );
+    unawaited(_scheduleAiEnhancement(targetEventIds));
+  }
+
+  Future<Set<int>> _loadVisibleEventIds(Isar isar) async {
+    final events = await isar.collection<EventEntity>().where().findAll();
+    return events.where(_isEventVisible).map((e) => e.id).toSet();
   }
 
   /// 轻量一致性校验，用于发现事件写入异常。
@@ -202,6 +239,18 @@ class EventService {
         .count();
 
     return {'total': total, 'withLocation': withLocation};
+  }
+
+  Future<Map<String, dynamic>> getPostProcessingStats({
+    Set<int>? onlyEventIds,
+  }) async {
+    final isar = PhotoService().isar;
+    final ai = await AIService().getAnalysisProgress();
+    final location = await _locationService.getLocationProgress(
+      isar: isar,
+      onlyEventIds: onlyEventIds,
+    );
+    return {'ai': ai, 'location': location};
   }
 
   /// 获取事件流（UI 监听用）。

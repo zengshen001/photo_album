@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import '../../utils/concurrency/concurrency_pool.dart';
 import '../../utils/event/event_scenario_rules.dart';
 import '../../utils/event/smart_title_generator.dart';
 import '../ai/llm_service.dart';
@@ -10,10 +11,12 @@ import '../photo/photo_service.dart';
 class EventSmartInfoService {
   final int minPhotosForDisplay;
   final int topTagLimit;
+  final ConcurrencyPool pool;
 
-  const EventSmartInfoService({
+  EventSmartInfoService({
     required this.minPhotosForDisplay,
     required this.topTagLimit,
+    required this.pool,
   });
 
   Future<void> refreshEventSmartInfo({
@@ -24,9 +27,14 @@ class EventSmartInfoService {
 
     final uniqueEventIds = eventIds.toSet().toList();
     print("🧠 开始刷新 ${uniqueEventIds.length} 个事件的智能信息...");
-    for (final eventId in uniqueEventIds) {
-      await _refreshSingleEventSmartInfo(isar: isar, eventId: eventId);
-    }
+    await Future.wait(
+      uniqueEventIds.map(
+        (eventId) => pool.withPermit(
+          () => _refreshSingleEventSmartInfo(isar: isar, eventId: eventId),
+          timeout: const Duration(minutes: 3),
+        ),
+      ),
+    );
     print("🎉 智能信息刷新完成");
   }
 
@@ -60,9 +68,9 @@ class EventSmartInfoService {
       );
       final shouldUseLlm = progress >= 100;
 
-      // 生成 caption（仅在 AI 分析结束后生成）
+      Future<void>? captionFuture;
       if (shouldUseLlm) {
-        await _maybeGenerateCaptionsForEvent(
+        captionFuture = _maybeGenerateCaptionsForEvent(
           isar: isar,
           event: event,
           analyzedPhotos: analyzedPhotos,
@@ -72,6 +80,9 @@ class EventSmartInfoService {
       if (shouldUseLlm && event.isLlmGenerated) {
         // 已有 LLM 标题，只更新统计信息，避免重复生成并覆盖现有标题列表
         print("  ℹ️ 事件 $eventId 已有 LLM 标题，跳过重复生成");
+        if (captionFuture != null) {
+          await captionFuture;
+        }
         await _applyEventStatsUpdate(
           isar: isar,
           eventId: eventId,
@@ -80,12 +91,20 @@ class EventSmartInfoService {
         return;
       }
 
+      final generatedTitles = shouldUseLlm
+          ? await _generateLlmThemesWithFallback(event, stats)
+          : _generateLocalThemes(event, stats, progress);
+
+      if (captionFuture != null) {
+        await captionFuture;
+      }
+
       await _applyEventSmartInfoUpdate(
         isar: isar,
         eventId: eventId,
         stats: stats,
         progress: progress,
-        shouldUseLlm: shouldUseLlm,
+        generatedTitles: generatedTitles,
       );
     } catch (e) {
       print("  ❌ 刷新事件 $eventId 失败: $e");
@@ -107,38 +126,60 @@ class EventSmartInfoService {
     final llmService = LLMService();
     final now = DateTime.now().millisecondsSinceEpoch;
     const chunkSize = 20;
+
+    final chunks = <List<PhotoEntity>>[];
     for (var i = 0; i < needCaption.length; i += chunkSize) {
-      final chunk = needCaption.sublist(
-        i,
-        (i + chunkSize) > needCaption.length
-            ? needCaption.length
-            : i + chunkSize,
+      chunks.add(
+        needCaption.sublist(
+          i,
+          (i + chunkSize) > needCaption.length
+              ? needCaption.length
+              : i + chunkSize,
+        ),
       );
+    }
 
-      final captions = llmService.isApiKeyConfigured
-          ? await llmService.generatePhotoCaptions(event, chunk)
-          : await llmService.generatePhotoCaptionsMock(event, chunk);
+    final results = await Future.wait(
+      chunks.map(
+        (chunk) => pool.withPermit(() async {
+          final captions = llmService.isApiKeyConfigured
+              ? await llmService.generatePhotoCaptions(event, chunk)
+              : await llmService.generatePhotoCaptionsMock(event, chunk);
+          return captions;
+        }, timeout: const Duration(seconds: 45)),
+      ),
+    );
 
-      if (captions.isEmpty) {
-        continue;
-      }
+    final merged = <int, String>{};
+    for (final m in results) {
+      merged.addAll(m);
+    }
+    if (merged.isEmpty) {
+      return;
+    }
 
-      var didUpdate = false;
-      await isar.writeTxn(() async {
-        for (final photo in chunk) {
-          final caption = captions[photo.id];
-          if (caption == null || caption.trim().isEmpty) {
-            continue;
-          }
-          photo.caption = caption.trim();
-          photo.captionUpdatedAt = now;
-          await isar.collection<PhotoEntity>().put(photo);
-          didUpdate = true;
+    var didUpdate = false;
+    await isar.writeTxn(() async {
+      for (final photo in needCaption) {
+        final caption = merged[photo.id];
+        if (caption == null || caption.trim().isEmpty) {
+          continue;
         }
-      });
-      if (didUpdate) {
-        PhotoService().markLocalDataChanged();
+        final latest = await isar.collection<PhotoEntity>().get(photo.id);
+        if (latest == null) {
+          continue;
+        }
+        if (!(latest.caption?.trim().isEmpty ?? true)) {
+          continue;
+        }
+        latest.caption = caption.trim();
+        latest.captionUpdatedAt = now;
+        await isar.collection<PhotoEntity>().put(latest);
+        didUpdate = true;
       }
+    });
+    if (didUpdate) {
+      PhotoService().markLocalDataChanged();
     }
   }
 
@@ -163,7 +204,7 @@ class EventSmartInfoService {
     required int eventId,
     required Map<String, dynamic> stats,
     required int progress,
-    required bool shouldUseLlm,
+    required _GeneratedThemes generatedTitles,
   }) async {
     await isar.writeTxn(() async {
       final latestEvent = await isar.collection<EventEntity>().get(eventId);
@@ -176,10 +217,6 @@ class EventSmartInfoService {
       latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
       latestEvent.tags =
           (stats['scenarioTags'] as List<String>?)?.toList() ?? const [];
-
-      final generatedTitles = shouldUseLlm
-          ? await _generateLlmThemesWithFallback(latestEvent, stats)
-          : _generateLocalThemes(latestEvent, stats, progress);
 
       if (!latestEvent.isLlmGenerated) {
         latestEvent.aiThemes = generatedTitles.titles;
@@ -251,8 +288,9 @@ class EventSmartInfoService {
       return _GeneratedThemes(titles: titles, fromLlm: true);
     } catch (llmError) {
       print("  ❌ LLM 生成失败: $llmError，回退到本地规则");
+      final titles = _generateLocalThemeCandidates(event, stats);
       return _GeneratedThemes(
-        titles: [_generateLocalTitle(event, stats)],
+        titles: titles.isEmpty ? [_generateLocalTitle(event, stats)] : titles,
         fromLlm: false,
       );
     }
