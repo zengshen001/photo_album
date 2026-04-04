@@ -5,8 +5,8 @@ import 'package:isar/isar.dart';
 
 import '../ai/ai_service.dart';
 import '../../models/entity/event_entity.dart';
+import '../../utils/event/event_cluster_config_catalog.dart';
 import '../../utils/event/event_cluster_helper.dart';
-import '../../utils/event/event_festival_rules.dart';
 import '../../utils/concurrency/concurrency_pool.dart';
 import 'event_clustering_service.dart';
 import 'event_location_service.dart';
@@ -23,22 +23,9 @@ class EventService {
     defaultValue: '',
   );
 
-  // 📊 聚类算法配置（旅游同日增强）
-  static const ClusterConfig _clusterConfig = ClusterConfig(
-    initialTimeThresholdHours: 4,
-    baseDistanceThresholdKm: 12,
-    sameCityTimeThresholdHours: 6,
-    sameCityDistanceThresholdKm: 20,
-    fallbackSameCityDistanceKm: 45,
-    sameDayMergeGapHours: 10,
-    crossDayMergeGapHours: 18,
-    minPhotosPerClusterForMerge: 1,
-    enableSameDayTravelMerge: true,
-    enableCrossDayTravelMerge: true,
-    enableFestivalClustering: true,
-    festivalMergeGapHours: 48,
-    festivalListVersion: EventFestivalRules.builtInVersion,
-  );
+  // 📊 聚类算法配置（仅改为集中引用，不改变任何默认值）
+  static const ClusterConfig _clusterConfig =
+      EventClusterConfigCatalog.defaultConfig;
 
   static const int minPhotosForDisplay = 5;
   static const bool _useIncrementalEventUpdate = true;

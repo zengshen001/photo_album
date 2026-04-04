@@ -55,6 +55,9 @@ class ClusterConfigSnapshot {
   final int minPhotosPerClusterForMerge;
   final bool enableSameDayTravelMerge;
   final bool enableCrossDayTravelMerge;
+  final bool enableFestivalClustering;
+  final int festivalMergeGapHours;
+  final String festivalListVersion;
 
   const ClusterConfigSnapshot({
     required this.initialTimeThresholdHours,
@@ -67,6 +70,9 @@ class ClusterConfigSnapshot {
     required this.minPhotosPerClusterForMerge,
     required this.enableSameDayTravelMerge,
     required this.enableCrossDayTravelMerge,
+    required this.enableFestivalClustering,
+    required this.festivalMergeGapHours,
+    required this.festivalListVersion,
   });
 
   factory ClusterConfigSnapshot.fromClusterConfig(ClusterConfig config) {
@@ -81,6 +87,9 @@ class ClusterConfigSnapshot {
       minPhotosPerClusterForMerge: config.minPhotosPerClusterForMerge,
       enableSameDayTravelMerge: config.enableSameDayTravelMerge,
       enableCrossDayTravelMerge: config.enableCrossDayTravelMerge,
+      enableFestivalClustering: config.enableFestivalClustering,
+      festivalMergeGapHours: config.festivalMergeGapHours,
+      festivalListVersion: config.festivalListVersion,
     );
   }
 
@@ -96,6 +105,9 @@ class ClusterConfigSnapshot {
       minPhotosPerClusterForMerge: minPhotosPerClusterForMerge,
       enableSameDayTravelMerge: enableSameDayTravelMerge,
       enableCrossDayTravelMerge: enableCrossDayTravelMerge,
+      enableFestivalClustering: enableFestivalClustering,
+      festivalMergeGapHours: festivalMergeGapHours,
+      festivalListVersion: festivalListVersion,
     );
   }
 
@@ -111,6 +123,9 @@ class ClusterConfigSnapshot {
       'minPhotosPerClusterForMerge': minPhotosPerClusterForMerge,
       'enableSameDayTravelMerge': enableSameDayTravelMerge,
       'enableCrossDayTravelMerge': enableCrossDayTravelMerge,
+      'enableFestivalClustering': enableFestivalClustering,
+      'festivalMergeGapHours': festivalMergeGapHours,
+      'festivalListVersion': festivalListVersion,
     };
   }
 
@@ -129,6 +144,9 @@ class ClusterConfigSnapshot {
       minPhotosPerClusterForMerge: map['minPhotosPerClusterForMerge'] as int,
       enableSameDayTravelMerge: map['enableSameDayTravelMerge'] as bool,
       enableCrossDayTravelMerge: map['enableCrossDayTravelMerge'] as bool,
+      enableFestivalClustering: map['enableFestivalClustering'] as bool,
+      festivalMergeGapHours: map['festivalMergeGapHours'] as int,
+      festivalListVersion: map['festivalListVersion'] as String,
     );
   }
 }

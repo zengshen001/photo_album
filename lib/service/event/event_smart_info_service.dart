@@ -63,10 +63,12 @@ class EventSmartInfoService {
       }
 
       final stats = _calculateEventStats(analyzedPhotos);
-      stats['scenarioTags'] = _mergeEventTags(
+      final mergedTags = _mergeEventTags(
         event: event,
         scenarioTags: (stats['scenarioTags'] as List<String>?) ?? const [],
       );
+      stats['scenarioTags'] = mergedTags;
+      event.tags = mergedTags;
       final progress = SmartTitleGenerator.calculateProgress(
         stats['analyzedCount'] as int,
         event.photoCount,
@@ -88,6 +90,7 @@ class EventSmartInfoService {
         if (captionFuture != null) {
           await captionFuture;
         }
+        await _normalizeStoredTitlesIfNeeded(isar: isar, event: event);
         await _applyEventStatsUpdate(
           isar: isar,
           eventId: eventId,
@@ -264,7 +267,10 @@ class EventSmartInfoService {
     Map<String, dynamic> stats,
     int progress,
   ) {
-    final titles = _generateLocalThemeCandidates(event, stats);
+    final titles = _normalizeTitlesForEvent(
+      event,
+      _generateLocalThemeCandidates(event, stats),
+    );
     final title = titles.isEmpty
         ? _generateLocalTitle(event, stats)
         : titles.first;
@@ -286,14 +292,18 @@ class EventSmartInfoService {
       final titles = llmService.isApiKeyConfigured
           ? await llmService.generateCreativeTitles(event, topTags)
           : await llmService.generateCreativeTitlesMock(event, topTags);
+      final normalizedTitles = _normalizeTitlesForEvent(event, titles);
       if (!llmService.isApiKeyConfigured) {
         print("  ⚠️ LLM API Key 未配置，使用模拟模式");
       }
-      print("  🎨 [LLM] 生成 ${titles.length} 个创意标题");
-      return _GeneratedThemes(titles: titles, fromLlm: true);
+      print("  🎨 [LLM] 生成 ${normalizedTitles.length} 个创意标题");
+      return _GeneratedThemes(titles: normalizedTitles, fromLlm: true);
     } catch (llmError) {
       print("  ❌ LLM 生成失败: $llmError，回退到本地规则");
-      final titles = _generateLocalThemeCandidates(event, stats);
+      final titles = _normalizeTitlesForEvent(
+        event,
+        _generateLocalThemeCandidates(event, stats),
+      );
       return _GeneratedThemes(
         titles: titles.isEmpty ? [_generateLocalTitle(event, stats)] : titles,
         fromLlm: false,
@@ -375,6 +385,74 @@ class EventSmartInfoService {
       return unique.take(5).toList();
     }
     return unique;
+  }
+
+  Future<void> _normalizeStoredTitlesIfNeeded({
+    required Isar isar,
+    required EventEntity event,
+  }) async {
+    final currentTitles = (event.aiThemes ?? const <String>[])
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
+    final sourceTitles = currentTitles.isEmpty ? [event.title] : currentTitles;
+    final normalized = _normalizeTitlesForEvent(event, sourceTitles);
+    if (normalized.isEmpty) {
+      return;
+    }
+
+    final sameLength = normalized.length == currentTitles.length;
+    final sameItems =
+        sameLength &&
+        currentTitles.asMap().entries.every(
+          (entry) => normalized[entry.key] == entry.value,
+        );
+    final sameTitle = event.title == normalized.first;
+    if (sameItems && sameTitle) {
+      return;
+    }
+
+    await isar.writeTxn(() async {
+      final latest = await isar.collection<EventEntity>().get(event.id);
+      if (latest == null) {
+        return;
+      }
+      latest.aiThemes = normalized;
+      latest.title = normalized.first;
+      await isar.collection<EventEntity>().put(latest);
+    });
+  }
+
+  List<String> _normalizeTitlesForEvent(
+    EventEntity event,
+    List<String> titles,
+  ) {
+    final festivalName = event.isFestivalEvent
+        ? event.festivalName?.trim()
+        : null;
+    final requireGraduation = _hasGraduationTag(event.tags);
+    final normalized = <String>[];
+
+    for (final raw in titles) {
+      var title = raw.trim();
+      if (title.isEmpty) {
+        continue;
+      }
+      if (festivalName != null &&
+          festivalName.isNotEmpty &&
+          !title.contains(festivalName)) {
+        title = '$festivalName · $title';
+      }
+      if (requireGraduation && !title.contains('毕业季')) {
+        title = '毕业季 · $title';
+      }
+      normalized.add(title);
+    }
+
+    return _uniqueTitles(normalized);
+  }
+
+  bool _hasGraduationTag(List<String> tags) {
+    return tags.any((tag) => tag.contains('毕业季'));
   }
 
   List<String> _uniqueTitles(List<String> input) {
