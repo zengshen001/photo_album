@@ -153,6 +153,32 @@ class EventScenarioRules {
       advancedTags.add("🎤 现场演出");
     }
 
+    if (totalFaces >= 3 &&
+        _containsAny(allTags, ['沙发', '房间', '室内', '餐厅', '桌子'])) {
+      advancedTags.add("👨‍👩‍👧‍👦 家庭欢聚");
+    }
+
+    if (_containsAny(allTags, ['公园', '草地', '树木', '步道']) &&
+        _containsAny(allTags, ['人像', '人群', '道路'])) {
+      advancedTags.add("🚶 公园散步");
+    }
+
+    if (_containsAny(allTags, ['古城', '古镇', '寺庙', '牌坊']) ||
+        (_containsAny(allTags, ['建筑', '夜晚']) &&
+            _containsAny(allTags, ['灯笼', '街道', '人群']))) {
+      advancedTags.add("🏮 古城漫游");
+    }
+
+    if (_containsAny(allTags, ['运动', '跑道', '篮球', '足球', '自行车']) &&
+        _containsAny(allTags, ['草地', '道路', '天空', '人群'])) {
+      advancedTags.add("🏃 户外运动");
+    }
+
+    if (_containsAny(allTags, ['湖泊', '河流', '桥', '水']) &&
+        _containsAny(allTags, ['建筑', '树木', '步道'])) {
+      advancedTags.add("🌉 湖畔漫步");
+    }
+
     if (advancedTags.isEmpty &&
         _containsAny(allTags, ['室内', '房间', '卧室', '厨房', '沙发'])) {
       advancedTags.add("🏠 居家日常");
@@ -173,8 +199,43 @@ class EventScenarioRules {
       advancedTags.add("📸 生活碎片");
     }
 
-    // 返回排序或截取 Top 3 的高级标签
-    return advancedTags.take(3).toList();
+    final priorityOrder = [
+      "🎓 毕业季",
+      "🏮 古城漫游",
+      "🎉 欢乐聚会",
+      "👨‍👩‍👧‍👦 家庭欢聚",
+      "📷 大合照",
+      "👩❤️👨 双人时光",
+      "👶 亲子时刻",
+      "🏖️ 海滨假日",
+      "⛰️ 拥抱自然",
+      "🌉 湖畔漫步",
+      "🌙 魅力夜景",
+      "🏙️ 城市漫步",
+      "🍱 美食探店",
+      "☕️ 咖啡甜点",
+      "🛍️ 逛街买买",
+      "🚶 公园散步",
+      "🏃 户外运动",
+      "✈️ 旅途出发",
+      "🎤 现场演出",
+      "🐾 萌宠当家",
+      "🌸 花海漫游",
+      "🏛️ 博物馆之旅",
+      "🎓 校园时光",
+      "🏠 居家日常",
+      "📸 生活碎片",
+    ];
+    final ordered = advancedTags.toList()
+      ..sort((a, b) {
+        final ai = priorityOrder.indexOf(a);
+        final bi = priorityOrder.indexOf(b);
+        if (ai == -1 && bi == -1) return a.compareTo(b);
+        if (ai == -1) return 1;
+        if (bi == -1) return -1;
+        return ai.compareTo(bi);
+      });
+    return ordered.take(3).toList();
   }
 
   // 辅助方法 1：检查集合是否包含目标列表中的任意一项 (OR 逻辑)

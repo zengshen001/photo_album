@@ -23,22 +23,9 @@ class LlmPromptBuilder {
     final festival = event.isFestivalEvent && event.festivalName != null
         ? event.festivalName
         : '无';
-    final festivalConstraint = festival == '无'
-        ? ''
-        : '''
-
-特殊约束（必须遵守）：
-- 本事件命中了节日聚类，节日为「$festival」。
-- 你生成的每个标题必须围绕「$festival」的回忆/氛围/场景展开，并且标题中必须包含「$festival」字样。
-- 不要把标题写成其他节日（例如“中秋”“国庆”等），也不要写成与节日无关的泛化标题。''';
-    final hasGraduationSeason = event.tags.contains('🎓 毕业季');
-    final graduationConstraint = !hasGraduationSeason
-        ? ''
-        : '''
-
-特殊约束（必须遵守）：
-- 本事件命中了场景「毕业季」。
-- 你生成的每个标题必须包含「毕业季」字样，并围绕毕业/合照/告别/校园氛围展开。''';
+    final sceneTags = event.tags.isEmpty ? '无' : event.tags.join('、');
+    final constraints = _buildSceneConstraints(event);
+    final titleSpecificConstraints = _buildTitleSpecificConstraints(event);
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -48,7 +35,7 @@ class LlmPromptBuilder {
 - 地点: $location
 - 季节: $season
 - 节日标签: $festival
-- 场景标签: ${event.tags.isEmpty ? '无' : event.tags.join('、')}
+- 场景标签: $sceneTags
 - 主要标签: $tagsStr
 - 平均欢乐值: $joyScore (范围 0.0-1.0，越高越快乐)
 
@@ -60,8 +47,8 @@ class LlmPromptBuilder {
 5. 不要添加编号（如 1.、2. 等）
 6. 结合地点和标签生成创意标题
 7. 可以使用一些诗意或文艺的表达
-$festivalConstraint
-$graduationConstraint
+$constraints
+$titleSpecificConstraints
 
 示例风格：
 - 青岛 · 海风与微笑
@@ -85,6 +72,8 @@ $graduationConstraint
     final festival = event.isFestivalEvent && event.festivalName != null
         ? event.festivalName
         : '无';
+    final sceneTags = event.tags.isEmpty ? '无' : event.tags.join('、');
+    final constraints = _buildSceneConstraints(event);
 
     final photoLines = photos
         .map((photo) {
@@ -126,6 +115,8 @@ $graduationConstraint
 - 地点: $location
 - 季节: $season
 - 节日标签: $festival
+- 场景标签: $sceneTags
+$constraints
 
 照片列表（每行一个 JSON 对象）：
 $photoLines
@@ -136,6 +127,42 @@ $photoLines
   {"photoId": 2, "caption": "餐桌上的热气腾腾"}
 ]
 ''';
+  }
+
+  static String _buildSceneConstraints(EventEntity event) {
+    final constraints = <String>[];
+    if (event.isFestivalEvent && event.festivalName != null) {
+      final festival = event.festivalName!;
+      constraints.addAll([
+        '本事件命中了节日聚类，节日为「$festival」。',
+        '生成内容必须围绕「$festival」的回忆/氛围/场景展开。',
+      ]);
+    }
+    if (event.tags.contains('🎓 毕业季')) {
+      constraints.addAll(['本事件命中了场景「毕业季」。', '生成内容必须体现毕业、合照、告别或校园氛围。']);
+    }
+    if (constraints.isEmpty) {
+      return '';
+    }
+    return '''
+
+特殊约束（必须遵守）：
+${constraints.map((item) => '- $item').join('\n')}''';
+  }
+
+  static String _buildTitleSpecificConstraints(EventEntity event) {
+    final constraints = <String>[];
+    if (event.isFestivalEvent && event.festivalName != null) {
+      final festival = event.festivalName!;
+      constraints.add('你生成的每个标题必须包含「$festival」字样。');
+    }
+    if (event.tags.contains('🎓 毕业季')) {
+      constraints.add('你生成的每个标题必须包含「毕业季」字样。');
+    }
+    if (constraints.isEmpty) {
+      return '';
+    }
+    return constraints.map((item) => '- $item').join('\n');
   }
 
   static String _sanitizeAddress(String? input) {

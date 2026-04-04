@@ -111,6 +111,11 @@ class EventEntity {
 
     // 适配旧数据：实时使用规则引擎生成最新标签，覆盖存储的旧标签（topN词频）
     final advancedTags = EventScenarioRules.generateAdvancedTags(photoEntities);
+    final festivalTags = EventFestivalRules.buildFestivalTags(
+      isFestivalEvent: isFestivalEvent,
+      festivalName: festivalName,
+    );
+    final mergedTags = <String>{...festivalTags, ...advancedTags}.toList();
 
     return Event(
       id: id.toString(),
@@ -121,7 +126,7 @@ class EventEntity {
       startDate: DateTime.fromMillisecondsSinceEpoch(startTime),
       endDate: DateTime.fromMillisecondsSinceEpoch(endTime),
       photos: photos,
-      tags: advancedTags,
+      tags: mergedTags,
       aiThemes: themes,
       analyzedPhotoCount: analyzedPhotoCount,
       isFestivalEvent: isFestivalEvent,
@@ -227,7 +232,13 @@ class EventEntity {
     }
 
     // 生成高级场景标签（规则引擎推导，语义更丰富）
-    event.tags = EventScenarioRules.generateAdvancedTags(photos);
+    event.tags = [
+      ...EventFestivalRules.buildFestivalTags(
+        isFestivalEvent: event.isFestivalEvent,
+        festivalName: event.festivalName,
+      ),
+      ...EventScenarioRules.generateAdvancedTags(photos),
+    ].toSet().toList();
 
     // 生成默认标题（日期范围）
     final start = DateTime.fromMillisecondsSinceEpoch(event.startTime);

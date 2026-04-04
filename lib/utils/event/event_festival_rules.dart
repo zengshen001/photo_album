@@ -16,6 +16,7 @@ class FestivalRule {
   final DateTime endDate;
   final int priority;
   final FestivalMergePolicy mergePolicy;
+  final List<String> signalTags;
 
   const FestivalRule({
     required this.name,
@@ -23,6 +24,7 @@ class FestivalRule {
     required this.endDate,
     required this.priority,
     this.mergePolicy = FestivalMergePolicy.preferMerge,
+    this.signalTags = const [],
   });
 
   bool contains(DateTime date) {
@@ -69,7 +71,7 @@ class EventFestivalRules {
   const EventFestivalRules._();
 
   /// 内置节日规则表版本号（用于日志/配置可观测性）。
-  static const String builtInVersion = 'cn_builtin_2024_2030_v2';
+  static const String builtInVersion = 'cn_builtin_2024_2030_v3';
 
   /// 判断一个簇是否为“节日事件”。
   ///
@@ -82,9 +84,13 @@ class EventFestivalRules {
       return FestivalMatchResult.none;
     }
 
-    final candidates = <FestivalRule, int>{};
+    final allTags = <String>{};
+    final candidates = <FestivalRule, double>{};
     for (final photo in cluster) {
       final date = DateTime.fromMillisecondsSinceEpoch(photo.timestamp);
+      if (photo.aiTags != null) {
+        allTags.addAll(photo.aiTags!);
+      }
       for (final rule in rulesForYear(date.year)) {
         if (rule.contains(date)) {
           candidates[rule] = (candidates[rule] ?? 0) + 1;
@@ -98,15 +104,21 @@ class EventFestivalRules {
 
     final sortedCandidates = candidates.entries.toList()
       ..sort((a, b) {
-        final countCompare = b.value.compareTo(a.value);
-        if (countCompare != 0) {
-          return countCompare;
+        final scoreCompare = b.value.compareTo(a.value);
+        if (scoreCompare != 0) {
+          return scoreCompare;
         }
         return b.key.priority.compareTo(a.key.priority);
       });
 
     final best = sortedCandidates.first;
-    final score = best.value / cluster.length;
+    final signalMatchCount = best.key.signalTags
+        .where((tag) => allTags.contains(tag))
+        .length;
+    final signalBoost = best.key.signalTags.isEmpty
+        ? 0.0
+        : (signalMatchCount / best.key.signalTags.length) * 0.25;
+    final score = (best.value / cluster.length) + signalBoost;
     if (score < 0.5) {
       return FestivalMatchResult.none;
     }
@@ -114,9 +126,23 @@ class EventFestivalRules {
     return FestivalMatchResult(
       isFestivalEvent: true,
       festivalName: best.key.name,
-      festivalScore: score,
+      festivalScore: score > 1.0 ? 1.0 : score,
       rule: best.key,
     );
+  }
+
+  static List<String> buildFestivalTags({
+    required bool isFestivalEvent,
+    required String? festivalName,
+  }) {
+    if (!isFestivalEvent ||
+        festivalName == null ||
+        festivalName.trim().isEmpty) {
+      return const [];
+    }
+    return [
+      _festivalTagByName[festivalName.trim()] ?? '🎊 ${festivalName.trim()}',
+    ];
   }
 
   /// 判断一个簇是否需要“按节日边界强制切分”。
@@ -211,18 +237,21 @@ class EventFestivalRules {
         startDate: DateTime(year, 1, 1),
         endDate: DateTime(year, 1, 1),
         priority: 55,
+        signalTags: ['灯光', '烟花', '夜晚'],
       ),
       FestivalRule(
         name: '情人节',
         startDate: DateTime(year, 2, 14),
         endDate: DateTime(year, 2, 14),
         priority: 35,
+        signalTags: ['花朵', '蛋糕', '人像', '心形'],
       ),
       FestivalRule(
         name: '妇女节',
         startDate: DateTime(year, 3, 8),
         endDate: DateTime(year, 3, 8),
         priority: 30,
+        signalTags: ['花朵', '人像'],
       ),
       FestivalRule(
         name: '愚人节',
@@ -235,30 +264,35 @@ class EventFestivalRules {
         startDate: DateTime(year, 5, 1),
         endDate: DateTime(year, 5, 3),
         priority: 75,
+        signalTags: ['城市', '街道', '人群', '建筑'],
       ),
       FestivalRule(
         name: '儿童节',
         startDate: DateTime(year, 6, 1),
         endDate: DateTime(year, 6, 1),
         priority: 28,
+        signalTags: ['儿童', '婴儿', '玩具'],
       ),
       FestivalRule(
         name: '万圣节',
         startDate: DateTime(year, 10, 31),
         endDate: DateTime(year, 10, 31),
         priority: 30,
+        signalTags: ['南瓜', '夜晚', '服饰', '灯光'],
       ),
       FestivalRule(
         name: '圣诞节',
         startDate: DateTime(year, 12, 24),
         endDate: DateTime(year, 12, 26),
         priority: 40,
+        signalTags: ['圣诞树', '礼物', '灯光', '夜晚'],
       ),
       FestivalRule(
         name: '跨年夜',
         startDate: DateTime(year, 12, 31),
         endDate: DateTime(year, 12, 31),
         priority: 45,
+        signalTags: ['烟花', '夜晚', '灯光', '人群'],
       ),
     ];
   }
@@ -276,12 +310,14 @@ class EventFestivalRules {
         startDate: DateTime(2024, 2, 9),
         endDate: DateTime(2024, 2, 17),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2024, 2, 23),
         endDate: DateTime(2024, 2, 25),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -289,24 +325,28 @@ class EventFestivalRules {
         endDate: DateTime(2024, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2024, 6, 8),
         endDate: DateTime(2024, 6, 10),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2024, 9, 15),
         endDate: DateTime(2024, 9, 17),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2024, 10, 1),
         endDate: DateTime(2024, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2025: [
@@ -315,12 +355,14 @@ class EventFestivalRules {
         startDate: DateTime(2025, 1, 28),
         endDate: DateTime(2025, 2, 4),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2025, 2, 11),
         endDate: DateTime(2025, 2, 13),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -328,24 +370,28 @@ class EventFestivalRules {
         endDate: DateTime(2025, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2025, 5, 31),
         endDate: DateTime(2025, 6, 2),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2025, 10, 5),
         endDate: DateTime(2025, 10, 7),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2025, 10, 1),
         endDate: DateTime(2025, 10, 8),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2026: [
@@ -354,12 +400,14 @@ class EventFestivalRules {
         startDate: DateTime(2026, 2, 15),
         endDate: DateTime(2026, 2, 23),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2026, 3, 2),
         endDate: DateTime(2026, 3, 4),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -367,24 +415,28 @@ class EventFestivalRules {
         endDate: DateTime(2026, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2026, 6, 19),
         endDate: DateTime(2026, 6, 21),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2026, 9, 25),
         endDate: DateTime(2026, 9, 27),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2026, 10, 1),
         endDate: DateTime(2026, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2027: [
@@ -393,12 +445,14 @@ class EventFestivalRules {
         startDate: DateTime(2027, 2, 5),
         endDate: DateTime(2027, 2, 13),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2027, 2, 20),
         endDate: DateTime(2027, 2, 22),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -406,24 +460,28 @@ class EventFestivalRules {
         endDate: DateTime(2027, 4, 5),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2027, 6, 8),
         endDate: DateTime(2027, 6, 10),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2027, 9, 14),
         endDate: DateTime(2027, 9, 16),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2027, 10, 1),
         endDate: DateTime(2027, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2028: [
@@ -432,12 +490,14 @@ class EventFestivalRules {
         startDate: DateTime(2028, 1, 25),
         endDate: DateTime(2028, 2, 2),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2028, 2, 9),
         endDate: DateTime(2028, 2, 11),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -445,24 +505,28 @@ class EventFestivalRules {
         endDate: DateTime(2028, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2028, 5, 27),
         endDate: DateTime(2028, 5, 29),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2028, 10, 2),
         endDate: DateTime(2028, 10, 4),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2028, 10, 1),
         endDate: DateTime(2028, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2029: [
@@ -471,12 +535,14 @@ class EventFestivalRules {
         startDate: DateTime(2029, 2, 12),
         endDate: DateTime(2029, 2, 20),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2029, 2, 26),
         endDate: DateTime(2029, 2, 28),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -484,24 +550,28 @@ class EventFestivalRules {
         endDate: DateTime(2029, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2029, 6, 15),
         endDate: DateTime(2029, 6, 17),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2029, 9, 21),
         endDate: DateTime(2029, 9, 23),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2029, 10, 1),
         endDate: DateTime(2029, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
     2030: [
@@ -510,12 +580,14 @@ class EventFestivalRules {
         startDate: DateTime(2030, 2, 2),
         endDate: DateTime(2030, 2, 10),
         priority: 100,
+        signalTags: ['灯笼', '烟花', '人群', '美食', '夜晚'],
       ),
       FestivalRule(
         name: '元宵',
         startDate: DateTime(2030, 2, 16),
         endDate: DateTime(2030, 2, 18),
         priority: 70,
+        signalTags: ['灯笼', '夜晚', '人群', '建筑'],
       ),
       FestivalRule(
         name: '清明',
@@ -523,25 +595,46 @@ class EventFestivalRules {
         endDate: DateTime(2030, 4, 6),
         priority: 60,
         mergePolicy: FestivalMergePolicy.strictSplit,
+        signalTags: ['墓地', '花朵', '植物'],
       ),
       FestivalRule(
         name: '端午',
         startDate: DateTime(2030, 6, 4),
         endDate: DateTime(2030, 6, 6),
         priority: 80,
+        signalTags: ['美食', '水', '船', '人群'],
       ),
       FestivalRule(
         name: '中秋',
         startDate: DateTime(2030, 9, 12),
         endDate: DateTime(2030, 9, 14),
         priority: 85,
+        signalTags: ['夜晚', '灯光', '月亮', '甜点'],
       ),
       FestivalRule(
         name: '国庆',
         startDate: DateTime(2030, 10, 1),
         endDate: DateTime(2030, 10, 7),
         priority: 90,
+        signalTags: ['人群', '建筑', '城市', '灯光'],
       ),
     ],
+  };
+
+  static const Map<String, String> _festivalTagByName = {
+    '春节': '🏮 春节',
+    '元宵': '🏮 元宵',
+    '清明': '🌿 清明',
+    '端午': '🥟 端午',
+    '中秋': '🌕 中秋',
+    '国庆': '🇨🇳 国庆',
+    '元旦': '🎆 元旦',
+    '情人节': '💌 情人节',
+    '妇女节': '🌷 妇女节',
+    '劳动节': '🧳 劳动节',
+    '儿童节': '🧸 儿童节',
+    '万圣节': '🎃 万圣节',
+    '圣诞节': '🎄 圣诞节',
+    '跨年夜': '🎇 跨年夜',
   };
 }

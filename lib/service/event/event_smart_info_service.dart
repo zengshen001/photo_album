@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
 import '../../utils/concurrency/concurrency_pool.dart';
+import '../../utils/event/event_festival_rules.dart';
 import '../../utils/event/event_scenario_rules.dart';
 import '../../utils/event/smart_title_generator.dart';
 import '../ai/llm_service.dart';
@@ -62,6 +63,10 @@ class EventSmartInfoService {
       }
 
       final stats = _calculateEventStats(analyzedPhotos);
+      stats['scenarioTags'] = _mergeEventTags(
+        event: event,
+        scenarioTags: (stats['scenarioTags'] as List<String>?) ?? const [],
+      );
       final progress = SmartTitleGenerator.calculateProgress(
         stats['analyzedCount'] as int,
         event.photoCount,
@@ -454,6 +459,19 @@ class EventSmartInfoService {
       'bestPhotoId': bestPhotoId,
       'scenarioTags': EventScenarioRules.generateAdvancedTags(photos),
     };
+  }
+
+  List<String> _mergeEventTags({
+    required EventEntity event,
+    required List<String> scenarioTags,
+  }) {
+    return [
+      ...EventFestivalRules.buildFestivalTags(
+        isFestivalEvent: event.isFestivalEvent,
+        festivalName: event.festivalName,
+      ),
+      ...scenarioTags,
+    ].toSet().toList();
   }
 }
 
