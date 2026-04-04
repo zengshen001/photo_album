@@ -27,6 +27,7 @@ class StoryPromptTemplate {
     final eventCenter = event.avgLatitude != null && event.avgLongitude != null
         ? '${event.avgLatitude!.toStringAsFixed(6)},${event.avgLongitude!.toStringAsFixed(6)}'
         : '未知';
+    final emotionSummary = _buildEmotionSummary(event);
 
     final templatePhotoLines =
         templateContext?.photos
@@ -56,6 +57,7 @@ $templatePhotoLines
 地点：$location
 事件中心坐标：$eventCenter
 位置线索模式：$locationMode
+事件情绪画像：$emotionSummary
 $templateInfo
 
 照片描述（共 ${photoDescriptions.length} 张）：
@@ -92,5 +94,25 @@ ${photoDescriptions.map((d) => '- $d').join('\n')}
 
 请生成故事正文（不包括标题）：
 ''';
+  }
+
+  static String _buildEmotionSummary(EventEntity event) {
+    final parts = <String>[];
+    if (event.avgHappyScore != null) {
+      parts.add('happy=${event.avgHappyScore!.toStringAsFixed(2)}');
+    }
+    if (event.avgCalmScore != null) {
+      parts.add('calm=${event.avgCalmScore!.toStringAsFixed(2)}');
+    }
+    if (event.avgNostalgicScore != null) {
+      parts.add('nostalgic=${event.avgNostalgicScore!.toStringAsFixed(2)}');
+    }
+    if (event.avgLivelyScore != null) {
+      parts.add('lively=${event.avgLivelyScore!.toStringAsFixed(2)}');
+    }
+    if (event.dominantEmotion != null && event.dominantEmotion!.isNotEmpty) {
+      parts.add('dominant=${event.dominantEmotion}');
+    }
+    return parts.isEmpty ? '未知' : parts.join('，');
   }
 }

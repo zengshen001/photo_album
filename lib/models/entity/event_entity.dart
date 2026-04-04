@@ -42,6 +42,12 @@ class EventEntity {
 
   // 😊 AI 智能增强字段
   double? joyScore; // 事件平均欢乐值 (0.0 - 1.0)
+  double? avgHappyScore;
+  double? avgCalmScore;
+  double? avgNostalgicScore;
+  double? avgLivelyScore;
+  String? dominantEmotion;
+  double? emotionDiversity;
   List<String>? aiThemes; // AI 生成的标题列表（本地规则：1个，LLM：3-5个）
   bool isLlmGenerated = false; // 标记当前标题是否由 LLM 生成
   int analyzedPhotoCount = 0; // 已分析照片数量（进度追踪）
@@ -232,13 +238,13 @@ class EventEntity {
     }
 
     // 生成高级场景标签（规则引擎推导，语义更丰富）
-    event.tags = [
+    event.tags = {
       ...EventFestivalRules.buildFestivalTags(
         isFestivalEvent: event.isFestivalEvent,
         festivalName: event.festivalName,
       ),
       ...EventScenarioRules.generateAdvancedTags(photos),
-    ].toSet().toList();
+    }.toList();
 
     // 生成默认标题（日期范围）
     final start = DateTime.fromMillisecondsSinceEpoch(event.startTime);

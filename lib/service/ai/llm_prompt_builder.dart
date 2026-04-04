@@ -20,6 +20,7 @@ class LlmPromptBuilder {
     final joyScore = event.joyScore != null
         ? event.joyScore!.toStringAsFixed(2)
         : '未知';
+    final emotionSummary = _buildEmotionSummary(event);
     final festival = event.isFestivalEvent && event.festivalName != null
         ? event.festivalName
         : '无';
@@ -38,6 +39,7 @@ class LlmPromptBuilder {
 - 场景标签: $sceneTags
 - 主要标签: $tagsStr
 - 平均欢乐值: $joyScore (范围 0.0-1.0，越高越快乐)
+- 事件情绪画像: $emotionSummary
 
 要求：
 1. 标题简洁有力（8-15 个字）
@@ -74,6 +76,7 @@ $titleSpecificConstraints
         : '无';
     final sceneTags = event.tags.isEmpty ? '无' : event.tags.join('、');
     final constraints = _buildSceneConstraints(event);
+    final emotionSummary = _buildEmotionSummary(event);
 
     final photoLines = photos
         .map((photo) {
@@ -116,6 +119,7 @@ $titleSpecificConstraints
 - 季节: $season
 - 节日标签: $festival
 - 场景标签: $sceneTags
+- 事件情绪画像: $emotionSummary
 $constraints
 
 照片列表（每行一个 JSON 对象）：
@@ -163,6 +167,27 @@ ${constraints.map((item) => '- $item').join('\n')}''';
       return '';
     }
     return constraints.map((item) => '- $item').join('\n');
+  }
+
+  static String _buildEmotionSummary(EventEntity event) {
+    final parts = <String>[];
+    void addScore(String label, double? value) {
+      if (value != null) {
+        parts.add('$label=${value.toStringAsFixed(2)}');
+      }
+    }
+
+    addScore('happy', event.avgHappyScore);
+    addScore('calm', event.avgCalmScore);
+    addScore('nostalgic', event.avgNostalgicScore);
+    addScore('lively', event.avgLivelyScore);
+    if (event.dominantEmotion != null && event.dominantEmotion!.isNotEmpty) {
+      parts.add('dominant=${event.dominantEmotion}');
+    }
+    if (event.emotionDiversity != null) {
+      parts.add('diversity=${event.emotionDiversity!.toStringAsFixed(2)}');
+    }
+    return parts.isEmpty ? '未知' : parts.join('，');
   }
 
   static String _sanitizeAddress(String? input) {

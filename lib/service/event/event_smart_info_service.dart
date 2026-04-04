@@ -221,8 +221,14 @@ class EventSmartInfoService {
       }
 
       latestEvent.joyScore = stats['avgJoyScore'];
+      latestEvent.avgHappyScore = stats['avgHappyScore'] as double?;
+      latestEvent.avgCalmScore = stats['avgCalmScore'] as double?;
+      latestEvent.avgNostalgicScore = stats['avgNostalgicScore'] as double?;
+      latestEvent.avgLivelyScore = stats['avgLivelyScore'] as double?;
+      latestEvent.dominantEmotion = stats['dominantEmotion'] as String?;
+      latestEvent.emotionDiversity = stats['emotionDiversity'] as double?;
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
-      latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
+      latestEvent.coverPhotoId = stats['firstPhotoId'] as int?;
       latestEvent.tags =
           (stats['scenarioTags'] as List<String>?)?.toList() ?? const [];
 
@@ -237,7 +243,8 @@ class EventSmartInfoService {
       await isar.collection<EventEntity>().put(latestEvent);
       print(
         "  ✅ 事件 $eventId 已更新：封面=${latestEvent.coverPhotoId} "
-        "欢乐=${latestEvent.joyScore?.toStringAsFixed(2)} 进度=$progress%",
+        "欢乐=${latestEvent.joyScore?.toStringAsFixed(2)} "
+        "主情绪=${latestEvent.dominantEmotion ?? '-'} 进度=$progress%",
       );
     });
   }
@@ -254,8 +261,14 @@ class EventSmartInfoService {
       }
 
       latestEvent.joyScore = stats['avgJoyScore'];
+      latestEvent.avgHappyScore = stats['avgHappyScore'] as double?;
+      latestEvent.avgCalmScore = stats['avgCalmScore'] as double?;
+      latestEvent.avgNostalgicScore = stats['avgNostalgicScore'] as double?;
+      latestEvent.avgLivelyScore = stats['avgLivelyScore'] as double?;
+      latestEvent.dominantEmotion = stats['dominantEmotion'] as String?;
+      latestEvent.emotionDiversity = stats['emotionDiversity'] as double?;
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
-      latestEvent.coverPhotoId = stats['bestPhotoId'] as int?;
+      latestEvent.coverPhotoId = stats['firstPhotoId'] as int?;
       latestEvent.tags =
           (stats['scenarioTags'] as List<String>?)?.toList() ?? const [];
       await isar.collection<EventEntity>().put(latestEvent);
@@ -483,15 +496,22 @@ class EventSmartInfoService {
       return {
         'analyzedCount': 0,
         'avgJoyScore': null,
+        'avgHappyScore': null,
+        'avgCalmScore': null,
+        'avgNostalgicScore': null,
+        'avgLivelyScore': null,
+        'dominantEmotion': null,
+        'emotionDiversity': null,
         'topTag': null,
         'topTagRatio': 0.0,
         'tagCounts': <String, int>{},
-        'bestPhotoId': null,
+        'firstPhotoId': null,
         'scenarioTags': <String>[],
       };
     }
 
     final analyzedCount = photos.length;
+    photos.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final joyScores = photos
         .where((p) => p.joyScore != null)
         .map((p) => p.joyScore!)
@@ -500,6 +520,18 @@ class EventSmartInfoService {
     final avgJoyScore = joyScores.isNotEmpty
         ? joyScores.reduce((a, b) => a + b) / joyScores.length
         : null;
+    final avgHappyScore = _averageNullable(
+      photos.map((p) => p.happyScore).toList(),
+    );
+    final avgCalmScore = _averageNullable(
+      photos.map((p) => p.calmScore).toList(),
+    );
+    final avgNostalgicScore = _averageNullable(
+      photos.map((p) => p.nostalgicScore).toList(),
+    );
+    final avgLivelyScore = _averageNullable(
+      photos.map((p) => p.livelyScore).toList(),
+    );
 
     final Map<String, int> tagCounts = {};
     for (final photo in photos) {
@@ -519,22 +551,32 @@ class EventSmartInfoService {
       topTagRatio = sortedTags.first.value / analyzedCount;
     }
 
-    int? bestPhotoId;
-    double maxJoy = 0.0;
-    for (final photo in photos) {
-      if (photo.joyScore != null && photo.joyScore! > maxJoy) {
-        maxJoy = photo.joyScore!;
-        bestPhotoId = photo.id;
-      }
-    }
+    final dominantEmotion = _dominantEmotion(
+      happy: avgHappyScore,
+      calm: avgCalmScore,
+      nostalgic: avgNostalgicScore,
+      lively: avgLivelyScore,
+    );
+    final emotionDiversity = _emotionDiversity(
+      happy: avgHappyScore,
+      calm: avgCalmScore,
+      nostalgic: avgNostalgicScore,
+      lively: avgLivelyScore,
+    );
 
     return {
       'analyzedCount': analyzedCount,
       'avgJoyScore': avgJoyScore,
+      'avgHappyScore': avgHappyScore,
+      'avgCalmScore': avgCalmScore,
+      'avgNostalgicScore': avgNostalgicScore,
+      'avgLivelyScore': avgLivelyScore,
+      'dominantEmotion': dominantEmotion,
+      'emotionDiversity': emotionDiversity,
       'topTag': topTag,
       'topTagRatio': topTagRatio,
       'tagCounts': tagCounts,
-      'bestPhotoId': bestPhotoId,
+      'firstPhotoId': photos.first.id,
       'scenarioTags': EventScenarioRules.generateAdvancedTags(photos),
     };
   }
@@ -543,13 +585,64 @@ class EventSmartInfoService {
     required EventEntity event,
     required List<String> scenarioTags,
   }) {
-    return [
+    return {
       ...EventFestivalRules.buildFestivalTags(
         isFestivalEvent: event.isFestivalEvent,
         festivalName: event.festivalName,
       ),
       ...scenarioTags,
-    ].toSet().toList();
+    }.toList();
+  }
+
+  double? _averageNullable(List<double?> values) {
+    final nonNull = values.whereType<double>().toList();
+    if (nonNull.isEmpty) {
+      return null;
+    }
+    return nonNull.reduce((a, b) => a + b) / nonNull.length;
+  }
+
+  String? _dominantEmotion({
+    required double? happy,
+    required double? calm,
+    required double? nostalgic,
+    required double? lively,
+  }) {
+    final entries = <MapEntry<String, double>>[
+      if (happy != null) MapEntry('happy', happy),
+      if (calm != null) MapEntry('calm', calm),
+      if (nostalgic != null) MapEntry('nostalgic', nostalgic),
+      if (lively != null) MapEntry('lively', lively),
+    ];
+    if (entries.isEmpty) {
+      return null;
+    }
+    entries.sort((a, b) => b.value.compareTo(a.value));
+    return entries.first.key;
+  }
+
+  double? _emotionDiversity({
+    required double? happy,
+    required double? calm,
+    required double? nostalgic,
+    required double? lively,
+  }) {
+    final values = [
+      happy,
+      calm,
+      nostalgic,
+      lively,
+    ].whereType<double>().toList();
+    if (values.isEmpty) {
+      return null;
+    }
+    final mean = values.reduce((a, b) => a + b) / values.length;
+    final variance =
+        values
+            .map((value) => (value - mean) * (value - mean))
+            .reduce((a, b) => a + b) /
+        values.length;
+    return variance.clamp(0.0, 1.0);
   }
 }
 

@@ -41,7 +41,12 @@ EventEntity _event() {
     ..city = '深圳市'
     ..province = '广东省'
     ..avgLatitude = 22.55
-    ..avgLongitude = 114.06;
+    ..avgLongitude = 114.06
+    ..avgHappyScore = 0.66
+    ..avgCalmScore = 0.31
+    ..avgNostalgicScore = 0.42
+    ..avgLivelyScore = 0.78
+    ..dominantEmotion = 'lively';
 }
 
 void main() {
@@ -110,6 +115,8 @@ void main() {
       expect(prompt, contains('严禁编造未提供的地名'));
       expect(prompt, contains('仅根据时间与标签叙事'));
       expect(prompt, contains('事件中心坐标：22.550000,114.060000'));
+      expect(prompt, contains('事件情绪画像：'));
+      expect(prompt, contains('dominant=lively'));
     });
   });
 }

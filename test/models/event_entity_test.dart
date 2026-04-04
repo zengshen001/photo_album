@@ -51,6 +51,7 @@ void main() {
       expect(event.festivalName, '春节');
       expect(event.festivalScore, 1);
       expect(event.title, '春节回忆');
+      expect(event.coverPhotoId, 1);
     });
 
     test('keeps date title for non festival event', () {
@@ -64,6 +65,7 @@ void main() {
       expect(event.isFestivalEvent, isFalse);
       expect(event.festivalName, isNull);
       expect(event.title, '3月9日');
+      expect(event.coverPhotoId, 1);
     });
   });
 }

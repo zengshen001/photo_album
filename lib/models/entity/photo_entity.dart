@@ -45,6 +45,10 @@ class PhotoEntity {
 
   // 😊 情感分析 (AI 增强)
   double? joyScore; // 欢乐值评分 (0.0 - 1.0)，综合人脸微笑度和场景标签
+  double? happyScore;
+  double? calmScore;
+  double? nostalgicScore;
+  double? livelyScore;
 
   String? caption;
   int? captionUpdatedAt;

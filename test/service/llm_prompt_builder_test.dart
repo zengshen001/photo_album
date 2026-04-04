@@ -10,11 +10,16 @@ void main() {
       ..title = 't'
       ..startTime = DateTime(2022, 6, 18, 9, 0).millisecondsSinceEpoch
       ..endTime = DateTime(2022, 6, 18, 10, 0).millisecondsSinceEpoch
-      ..tags = ['🎓 毕业季'];
+      ..tags = ['🎓 毕业季']
+      ..avgHappyScore = 0.72
+      ..avgNostalgicScore = 0.84
+      ..dominantEmotion = 'nostalgic';
 
     final prompt = LlmPromptBuilder.buildCreativeTitlePrompt(event, const []);
     expect(prompt, contains('场景标签: 🎓 毕业季'));
     expect(prompt, contains('必须包含「毕业季」'));
+    expect(prompt, contains('事件情绪画像:'));
+    expect(prompt, contains('dominant=nostalgic'));
   });
 
   test('buildCreativeTitlePrompt includes festival constraints', () {
@@ -23,11 +28,15 @@ void main() {
       ..startTime = DateTime(2024, 6, 10, 9, 0).millisecondsSinceEpoch
       ..endTime = DateTime(2024, 6, 10, 10, 0).millisecondsSinceEpoch
       ..isFestivalEvent = true
-      ..festivalName = '端午';
+      ..festivalName = '端午'
+      ..avgHappyScore = 0.61
+      ..avgLivelyScore = 0.73
+      ..dominantEmotion = 'lively';
 
     final prompt = LlmPromptBuilder.buildCreativeTitlePrompt(event, const []);
     expect(prompt, contains('节日为「端午」'));
     expect(prompt, contains('必须包含「端午」'));
+    expect(prompt, contains('dominant=lively'));
   });
 
   test('buildPhotoCaptionPrompt includes advanced scene tags', () {
@@ -37,7 +46,13 @@ void main() {
       ..endTime = DateTime(2024, 6, 10, 10, 0).millisecondsSinceEpoch
       ..isFestivalEvent = true
       ..festivalName = '端午'
-      ..tags = ['🥟 端午', '🏮 古城漫游'];
+      ..tags = ['🥟 端午', '🏮 古城漫游']
+      ..avgHappyScore = 0.58
+      ..avgCalmScore = 0.32
+      ..avgNostalgicScore = 0.67
+      ..avgLivelyScore = 0.74
+      ..dominantEmotion = 'lively'
+      ..emotionDiversity = 0.04;
     final photo = PhotoEntity()
       ..id = 1
       ..assetId = 'asset_1'
@@ -50,5 +65,7 @@ void main() {
     final prompt = LlmPromptBuilder.buildPhotoCaptionPrompt(event, [photo]);
     expect(prompt, contains('场景标签: 🥟 端午、🏮 古城漫游'));
     expect(prompt, contains('节日为「端午」'));
+    expect(prompt, contains('事件情绪画像:'));
+    expect(prompt, contains('diversity=0.04'));
   });
 }

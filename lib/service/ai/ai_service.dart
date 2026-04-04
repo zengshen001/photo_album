@@ -175,24 +175,26 @@ class AIService {
           }
         }
 
-        final joyScore = AIScoreHelper.calculateJoyScore(
+        final emotionScores = AIScoreHelper.calculateEmotionScores(
           faceCount: faceCount,
           maxSmileProb: maxSmileProb,
           tags: validTags,
         );
+        final joyScore = emotionScores.compatibilityJoyScore;
 
         await _markAsAnalyzed(
           photo.id,
           validTags,
           faceCount,
           maxSmileProb,
+          emotionScores,
           joyScore,
           isar,
         );
 
         final fileName = photo.path.split('/').last;
         log(
-          '[AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)}',
+          '[AI] $fileName -> 标签:$validTags 人脸:$faceCount 欢乐:${joyScore.toStringAsFixed(2)} 主情绪:${emotionScores.dominantEmotion}',
           name: 'AIService',
         );
         return _AiAnalysisResult(eventId: photo.eventId);
@@ -226,7 +228,15 @@ class AIService {
     required Isar isar,
   }) async {
     log(reason, name: 'AIService');
-    await _markAsAnalyzed(photoId, [], 0, 0.0, 0.0, isar);
+    await _markAsAnalyzed(
+      photoId,
+      [],
+      0,
+      0.0,
+      const EmotionScores(happy: 0.0, calm: 0.0, nostalgic: 0.0, lively: 0.0),
+      0.0,
+      isar,
+    );
   }
 
   void _collectAffectedEventId(Set<int> affectedEventIds, int? eventId) {
@@ -241,6 +251,7 @@ class AIService {
     List<String> tags,
     int faceCount,
     double smileProb,
+    EmotionScores emotionScores,
     double joyScore,
     Isar isar,
   ) async {
@@ -255,6 +266,10 @@ class AIService {
         p.faceCount = faceCount;
         p.smileProb = smileProb;
         p.joyScore = joyScore;
+        p.happyScore = emotionScores.happy;
+        p.calmScore = emotionScores.calm;
+        p.nostalgicScore = emotionScores.nostalgic;
+        p.livelyScore = emotionScores.lively;
         await isar.collection<PhotoEntity>().put(p);
         didUpdate = true;
 
