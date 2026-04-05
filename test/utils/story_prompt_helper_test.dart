@@ -117,6 +117,7 @@ void main() {
       expect(prompt, contains('事件中心坐标：22.550000,114.060000'));
       expect(prompt, contains('事件情绪画像：'));
       expect(prompt, contains('dominant=lively'));
+      expect(prompt, isNot(contains('事件 OCR 线索：')));
     });
   });
 }

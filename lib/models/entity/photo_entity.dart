@@ -49,6 +49,9 @@ class PhotoEntity {
   double? calmScore;
   double? nostalgicScore;
   double? livelyScore;
+  bool isOcrProcessed = false;
+  String? ocrRawText;
+  String? ocrText;
 
   String? caption;
   int? captionUpdatedAt;

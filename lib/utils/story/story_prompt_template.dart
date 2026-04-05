@@ -1,6 +1,7 @@
 import '../../models/entity/event_entity.dart';
 import '../../models/story_theme_selection.dart';
 import '../../models/vo/story_template_context.dart';
+import '../../service/ai/ocr_feature_flags.dart';
 
 class StoryPromptTemplate {
   const StoryPromptTemplate._();
@@ -28,6 +29,7 @@ class StoryPromptTemplate {
         ? '${event.avgLatitude!.toStringAsFixed(6)},${event.avgLongitude!.toStringAsFixed(6)}'
         : '未知';
     final emotionSummary = _buildEmotionSummary(event);
+    final ocrContext = _buildOptionalOcrContext(event);
 
     final templatePhotoLines =
         templateContext?.photos
@@ -58,6 +60,7 @@ $templatePhotoLines
 事件中心坐标：$eventCenter
 位置线索模式：$locationMode
 事件情绪画像：$emotionSummary
+$ocrContext
 $templateInfo
 
 照片描述（共 ${photoDescriptions.length} 张）：
@@ -114,5 +117,16 @@ ${photoDescriptions.map((d) => '- $d').join('\n')}
       parts.add('dominant=${event.dominantEmotion}');
     }
     return parts.isEmpty ? '未知' : parts.join('，');
+  }
+
+  static String _buildOptionalOcrContext(EventEntity event) {
+    if (!OcrFeatureFlags.enablePhotoOcr) {
+      return '';
+    }
+    final summary = event.ocrSummary?.trim();
+    if (summary == null || summary.isEmpty) {
+      return '';
+    }
+    return '事件 OCR 线索：$summary';
   }
 }

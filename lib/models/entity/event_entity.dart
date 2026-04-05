@@ -48,6 +48,8 @@ class EventEntity {
   double? avgLivelyScore;
   String? dominantEmotion;
   double? emotionDiversity;
+  String? ocrSummary;
+  List<String>? ocrKeywords;
   List<String>? aiThemes; // AI 生成的标题列表（本地规则：1个，LLM：3-5个）
   bool isLlmGenerated = false; // 标记当前标题是否由 LLM 生成
   int analyzedPhotoCount = 0; // 已分析照片数量（进度追踪）

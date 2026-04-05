@@ -20,6 +20,7 @@ void main() {
     expect(prompt, contains('必须包含「毕业季」'));
     expect(prompt, contains('事件情绪画像:'));
     expect(prompt, contains('dominant=nostalgic'));
+    expect(prompt, isNot(contains('事件 OCR 线索')));
   });
 
   test('buildCreativeTitlePrompt includes festival constraints', () {
@@ -37,6 +38,7 @@ void main() {
     expect(prompt, contains('节日为「端午」'));
     expect(prompt, contains('必须包含「端午」'));
     expect(prompt, contains('dominant=lively'));
+    expect(prompt, isNot(contains('事件 OCR 线索')));
   });
 
   test('buildPhotoCaptionPrompt includes advanced scene tags', () {
@@ -67,5 +69,6 @@ void main() {
     expect(prompt, contains('节日为「端午」'));
     expect(prompt, contains('事件情绪画像:'));
     expect(prompt, contains('diversity=0.04'));
+    expect(prompt, isNot(contains('事件 OCR 线索')));
   });
 }

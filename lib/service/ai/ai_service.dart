@@ -9,6 +9,7 @@ import '../../models/entity/photo_entity.dart';
 import '../../models/entity/event_entity.dart';
 import '../../utils/photo/ai_score_helper.dart';
 import 'ai_tag_dictionary.dart';
+import 'photo_ocr_service.dart';
 import '../photo/photo_service.dart';
 import '../event/event_service.dart';
 
@@ -16,6 +17,7 @@ class AIService {
   static final AIService _instance = AIService._internal();
   factory AIService() => _instance;
   AIService._internal();
+  final PhotoOcrService _photoOcrService = const PhotoOcrService();
 
   Future<Set<int>> analyzePhotosInBackground({
     int batchSize = 10,
@@ -181,6 +183,7 @@ class AIService {
           tags: validTags,
         );
         final joyScore = emotionScores.compatibilityJoyScore;
+        final ocrResult = await _photoOcrService.recognizeText(file);
 
         await _markAsAnalyzed(
           photo.id,
@@ -189,6 +192,7 @@ class AIService {
           maxSmileProb,
           emotionScores,
           joyScore,
+          ocrResult,
           isar,
         );
 
@@ -235,6 +239,7 @@ class AIService {
       0.0,
       const EmotionScores(happy: 0.0, calm: 0.0, nostalgic: 0.0, lively: 0.0),
       0.0,
+      const PhotoOcrResult.disabled(),
       isar,
     );
   }
@@ -253,6 +258,7 @@ class AIService {
     double smileProb,
     EmotionScores emotionScores,
     double joyScore,
+    PhotoOcrResult ocrResult,
     Isar isar,
   ) async {
     var didUpdate = false;
@@ -270,6 +276,11 @@ class AIService {
         p.calmScore = emotionScores.calm;
         p.nostalgicScore = emotionScores.nostalgic;
         p.livelyScore = emotionScores.lively;
+        if (ocrResult.isEnabled) {
+          p.isOcrProcessed = ocrResult.isProcessed;
+          p.ocrRawText = ocrResult.rawText;
+          p.ocrText = ocrResult.cleanedText;
+        }
         await isar.collection<PhotoEntity>().put(p);
         didUpdate = true;
 

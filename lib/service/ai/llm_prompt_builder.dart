@@ -1,5 +1,6 @@
 import '../../models/entity/event_entity.dart';
 import '../../models/entity/photo_entity.dart';
+import 'ocr_feature_flags.dart';
 
 class LlmPromptBuilder {
   const LlmPromptBuilder._();
@@ -27,6 +28,7 @@ class LlmPromptBuilder {
     final sceneTags = event.tags.isEmpty ? '无' : event.tags.join('、');
     final constraints = _buildSceneConstraints(event);
     final titleSpecificConstraints = _buildTitleSpecificConstraints(event);
+    final ocrContext = _buildOptionalOcrContext(event);
 
     return '''
 你是一个专业的摄影相册文案策划师。请为以下照片事件生成 3 到 5 个简短、富有创意、博客风格的中文标题。
@@ -40,6 +42,7 @@ class LlmPromptBuilder {
 - 主要标签: $tagsStr
 - 平均欢乐值: $joyScore (范围 0.0-1.0，越高越快乐)
 - 事件情绪画像: $emotionSummary
+$ocrContext
 
 要求：
 1. 标题简洁有力（8-15 个字）
@@ -77,6 +80,7 @@ $titleSpecificConstraints
     final sceneTags = event.tags.isEmpty ? '无' : event.tags.join('、');
     final constraints = _buildSceneConstraints(event);
     final emotionSummary = _buildEmotionSummary(event);
+    final ocrContext = _buildOptionalOcrContext(event);
 
     final photoLines = photos
         .map((photo) {
@@ -120,6 +124,7 @@ $titleSpecificConstraints
 - 节日标签: $festival
 - 场景标签: $sceneTags
 - 事件情绪画像: $emotionSummary
+$ocrContext
 $constraints
 
 照片列表（每行一个 JSON 对象）：
@@ -188,6 +193,17 @@ ${constraints.map((item) => '- $item').join('\n')}''';
       parts.add('diversity=${event.emotionDiversity!.toStringAsFixed(2)}');
     }
     return parts.isEmpty ? '未知' : parts.join('，');
+  }
+
+  static String _buildOptionalOcrContext(EventEntity event) {
+    if (!OcrFeatureFlags.enablePhotoOcr) {
+      return '';
+    }
+    final summary = event.ocrSummary?.trim();
+    if (summary == null || summary.isEmpty) {
+      return '';
+    }
+    return '- 事件 OCR 线索: $summary';
   }
 
   static String _sanitizeAddress(String? input) {

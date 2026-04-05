@@ -7,6 +7,7 @@ import '../../utils/event/event_festival_rules.dart';
 import '../../utils/event/event_scenario_rules.dart';
 import '../../utils/event/smart_title_generator.dart';
 import '../ai/llm_service.dart';
+import '../ai/ocr_feature_flags.dart';
 import '../photo/photo_service.dart';
 
 class EventSmartInfoService {
@@ -227,6 +228,9 @@ class EventSmartInfoService {
       latestEvent.avgLivelyScore = stats['avgLivelyScore'] as double?;
       latestEvent.dominantEmotion = stats['dominantEmotion'] as String?;
       latestEvent.emotionDiversity = stats['emotionDiversity'] as double?;
+      latestEvent.ocrSummary = stats['ocrSummary'] as String?;
+      latestEvent.ocrKeywords = (stats['ocrKeywords'] as List<String>?)
+          ?.toList();
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
       latestEvent.coverPhotoId = stats['firstPhotoId'] as int?;
       latestEvent.tags =
@@ -267,6 +271,9 @@ class EventSmartInfoService {
       latestEvent.avgLivelyScore = stats['avgLivelyScore'] as double?;
       latestEvent.dominantEmotion = stats['dominantEmotion'] as String?;
       latestEvent.emotionDiversity = stats['emotionDiversity'] as double?;
+      latestEvent.ocrSummary = stats['ocrSummary'] as String?;
+      latestEvent.ocrKeywords = (stats['ocrKeywords'] as List<String>?)
+          ?.toList();
       latestEvent.analyzedPhotoCount = stats['analyzedCount'] as int;
       latestEvent.coverPhotoId = stats['firstPhotoId'] as int?;
       latestEvent.tags =
@@ -506,6 +513,8 @@ class EventSmartInfoService {
         'topTagRatio': 0.0,
         'tagCounts': <String, int>{},
         'firstPhotoId': null,
+        'ocrSummary': null,
+        'ocrKeywords': <String>[],
         'scenarioTags': <String>[],
       };
     }
@@ -557,6 +566,8 @@ class EventSmartInfoService {
       nostalgic: avgNostalgicScore,
       lively: avgLivelyScore,
     );
+    final ocrSummary = _buildOcrSummary(photos);
+    final ocrKeywords = _extractOcrKeywords(photos);
     final emotionDiversity = _emotionDiversity(
       happy: avgHappyScore,
       calm: avgCalmScore,
@@ -577,6 +588,8 @@ class EventSmartInfoService {
       'topTagRatio': topTagRatio,
       'tagCounts': tagCounts,
       'firstPhotoId': photos.first.id,
+      'ocrSummary': ocrSummary,
+      'ocrKeywords': ocrKeywords,
       'scenarioTags': EventScenarioRules.generateAdvancedTags(photos),
     };
   }
@@ -643,6 +656,44 @@ class EventSmartInfoService {
             .reduce((a, b) => a + b) /
         values.length;
     return variance.clamp(0.0, 1.0);
+  }
+
+  String? _buildOcrSummary(List<PhotoEntity> photos) {
+    if (!OcrFeatureFlags.enablePhotoOcr) {
+      return null;
+    }
+    final texts = photos
+        .map((photo) => photo.ocrText?.trim())
+        .whereType<String>()
+        .where((text) => text.isNotEmpty)
+        .toList();
+    if (texts.isEmpty) {
+      return null;
+    }
+    return texts.take(3).join(' | ');
+  }
+
+  List<String> _extractOcrKeywords(List<PhotoEntity> photos) {
+    if (!OcrFeatureFlags.enablePhotoOcr) {
+      return const [];
+    }
+    final words = <String, int>{};
+    for (final photo in photos) {
+      final text = photo.ocrText?.trim();
+      if (text == null || text.isEmpty) {
+        continue;
+      }
+      for (final part in text.split(RegExp(r'[\s|,，;；]+'))) {
+        final token = part.trim();
+        if (token.length < 2) {
+          continue;
+        }
+        words[token] = (words[token] ?? 0) + 1;
+      }
+    }
+    final sorted = words.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(8).map((entry) => entry.key).toList();
   }
 }
 
